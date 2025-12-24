@@ -38,7 +38,6 @@ okhttp-mockwebserver = { module = "com.squareup.okhttp3:mockwebserver", version.
 
 # Serialization
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
-kotlinx-serialization-yaml = { module = "com.charleskorn.kaml:kaml", version = "0.61.0" }
 
 # Logging
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
@@ -64,6 +63,6 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
 
 [bundles]
-serialization = ["kotlinx-serialization-json", "kotlinx-serialization-yaml"]
+serialization = ["kotlinx-serialization-json"]
 testing = ["junit-jupiter", "mockk", "okhttp-mockwebserver"]
 jackson-build = ["jackson-core", "jackson-databind", "jackson-yaml", "jackson-kotlin"]

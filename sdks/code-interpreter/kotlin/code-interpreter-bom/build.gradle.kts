@@ -26,7 +26,6 @@ dependencies {
         api(libs.okhttp)
         api(libs.okhttp.logging)
         api(libs.kotlinx.serialization.json)
-        api(libs.kotlinx.serialization.yaml)
         api(libs.slf4j.api)
     }
 }
