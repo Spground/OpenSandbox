@@ -56,6 +56,7 @@ func (c *Controller) runCommand(ctx context.Context, request *ExecuteCodeRequest
 
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	cmd.Env = mergeEnvs(os.Environ(), loadExtraEnvFromFile())
 
 	done := make(chan struct{}, 1)
 	safego.Go(func() {
@@ -66,7 +67,6 @@ func (c *Controller) runCommand(ctx context.Context, request *ExecuteCodeRequest
 	})
 
 	cmd.Dir = request.Cwd
-	cmd.Env = os.Environ()
 	// use a dedicated process group so signals propagate to children.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
@@ -166,6 +166,7 @@ func (c *Controller) runBackgroundCommand(_ context.Context, request *ExecuteCod
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
+	cmd.Env = mergeEnvs(os.Environ(), loadExtraEnvFromFile())
 
 	// use DevNull as stdin so interactive programs exit immediately.
 	cmd.Stdin = os.NewFile(uintptr(syscall.Stdin), os.DevNull)
