@@ -24,12 +24,12 @@ jobs:
 
       - name: Run golint
         run: |
-          cd components/router
+          cd components/ingress
           make golint
 
       - name: Run Build
         run: |
-          cd components/router
+          cd components/ingress
           make build
 
       - name: Run tests
