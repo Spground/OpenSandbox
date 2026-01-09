@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/alibaba/opensandbox/execd/pkg/flag"
@@ -72,6 +73,58 @@ func (c *CodeInterpretingController) RunCommand() {
 // InterruptCommand stops a running shell command session.
 func (c *CodeInterpretingController) InterruptCommand() {
 	c.interrupt()
+}
+
+// GetCommandStatus returns command status by id.
+func (c *CodeInterpretingController) GetCommandStatus() {
+	commandID := c.Ctx.Input.Param(":id")
+	if commandID == "" {
+		c.RespondError(http.StatusBadRequest, model.ErrorCodeInvalidRequest, "missing command execution id")
+		return
+	}
+
+	status, err := codeRunner.GetCommandStatus(commandID)
+	if err != nil {
+		c.RespondError(http.StatusNotFound, model.ErrorCodeInvalidRequest, err.Error())
+		return
+	}
+
+	resp := model.CommandStatusResponse{
+		ID:       status.Session,
+		Running:  status.Running,
+		ExitCode: status.ExitCode,
+		Error:    status.Error,
+		Content:  status.Content,
+	}
+	if !status.StartedAt.IsZero() {
+		resp.StartedAt = status.StartedAt
+	}
+	if status.FinishedAt != nil {
+		resp.FinishedAt = status.FinishedAt
+	}
+
+	c.RespondSuccess(resp)
+}
+
+// GetBackgroundCommandOutput returns accumulated stdout/stderr for a command session as plain text.
+func (c *CodeInterpretingController) GetBackgroundCommandOutput() {
+	id := c.Ctx.Input.Param(":id")
+	if id == "" {
+		c.RespondError(http.StatusBadRequest, model.ErrorCodeMissingQuery, "missing command execution id")
+		return
+	}
+
+	cursor := c.QueryInt64(c.Ctx.Input.Query("cursor"), 0)
+	output, lastCursor, err := codeRunner.SeekBackgroundCommandOutput(id, cursor)
+	if err != nil {
+		c.RespondError(http.StatusBadRequest, model.ErrorCodeInvalidRequest, err.Error())
+		return
+	}
+
+	c.Ctx.Output.Header("EXECD-COMMANDS-TAIL-CURSOR", strconv.FormatInt(lastCursor, 10))
+	c.Ctx.Output.Header("Content-Type", "text/plain; charset=utf-8")
+	c.Ctx.Output.SetStatus(http.StatusOK)
+	_ = c.Ctx.Output.Body(output)
 }
 
 func (c *CodeInterpretingController) buildExecuteCommandRequest(request model.RunCommandRequest) *runtime.ExecuteCodeRequest {

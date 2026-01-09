@@ -53,7 +53,16 @@ type jupyterKernel struct {
 }
 
 type commandKernel struct {
-	pid int
+	pid          int
+	stdoutPath   string
+	stderrPath   string
+	startedAt    time.Time
+	finishedAt   *time.Time
+	exitCode     *int
+	errMsg       string
+	running      bool
+	isBackground bool
+	content      string
 }
 
 // NewController creates a runtime controller.

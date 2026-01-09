@@ -51,7 +51,7 @@ jobs:
           [docker]
           network_mode = "bridge"
           EOF
-          
+
           ./scripts/python-e2e.sh
 
       - name: Eval logs
