@@ -8,7 +8,7 @@ OpenSandbox Kubernetes Controller is a Kubernetes operator that manages sandbox 
 
 - **Flexible Sandbox Creation**: Choose between pooled and non-pooled sandbox creation modes
 - **Batch and Individual Delivery**: Support both single sandbox (for real-user interactions) and batch sandbox delivery (for high-throughput agentic-RL scenarios)
-- **Optional Task Scheduling**: Integrated task orchestration with optional shard task templates for heterogeneous task distribution and customized sandbox delivery (e.g., process injection or dynamic container creation)
+- **Optional Task Scheduling**: Integrated task orchestration with optional shard task templates for heterogeneous task distribution and customized sandbox delivery (e.g., process injection)
 - **Resource Pooling**: Maintain pre-warmed resource pools for rapid sandbox provisioning
 - **Comprehensive Monitoring**: Real-time status tracking of sandboxes and tasks
 
@@ -33,7 +33,7 @@ The Pool custom resource maintains a pool of pre-warmed compute resources to ena
 ### Task Orchestration
 Integrated task management system that executes custom workloads within sandboxes:
 - **Optional Execution**: Task scheduling is completely optional - sandboxes can be created without tasks
-- **Container and Process Tasks**: Support for both container-based and process-based tasks
+- **Process-Based Tasks**: Support for process-based tasks that execute within the sandbox environment
 - **Heterogeneous Task Distribution**: Customize individual tasks for each sandbox in a batch using shardTaskPatches
 
 ### Advanced Scheduling

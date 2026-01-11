@@ -17,7 +17,9 @@ package types
 import (
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
+
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 // TaskState defines the simplified internal state of a task.
@@ -43,9 +45,11 @@ type Status struct {
 }
 
 type Task struct {
-	Name              string            `json:"name"`
-	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
-	Spec              v1alpha1.TaskSpec `json:"spec"`
+	Name              string     `json:"name"`
+	DeletionTimestamp *time.Time `json:"deletionTimestamp,omitempty"`
+
+	Process         *api.Process
+	PodTemplateSpec *corev1.PodTemplateSpec
 
 	// Status is now a first-class citizen and persisted.
 	Status Status `json:"status"`

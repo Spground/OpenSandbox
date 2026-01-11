@@ -50,6 +50,7 @@ import (
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/expectations"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/fieldindex"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/requeueduration"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 var (
@@ -348,8 +349,8 @@ func (r *BatchSandboxReconciler) deleteTaskScheduler(batchSbx *sandboxv1alpha1.B
 	r.taskSchedulers.Delete(key)
 }
 
-func generaTaskSpec(batchSbx *sandboxv1alpha1.BatchSandbox) ([]*sandboxv1alpha1.Task, error) {
-	ret := make([]*sandboxv1alpha1.Task, *batchSbx.Spec.Replicas)
+func generaTaskSpec(batchSbx *sandboxv1alpha1.BatchSandbox) ([]*api.Task, error) {
+	ret := make([]*api.Task, *batchSbx.Spec.Replicas)
 	for idx := range int(*batchSbx.Spec.Replicas) {
 		task, err := getTaskSpec(batchSbx, idx)
 		if err != nil {
@@ -360,29 +361,36 @@ func generaTaskSpec(batchSbx *sandboxv1alpha1.BatchSandbox) ([]*sandboxv1alpha1.
 	return ret, nil
 }
 
-func getTaskSpec(batchSbx *sandboxv1alpha1.BatchSandbox, idx int) (*sandboxv1alpha1.Task, error) {
-	task := &sandboxv1alpha1.Task{
-		ObjectMeta: batchSbx.Spec.TaskTemplate.ObjectMeta,
-		Spec:       *batchSbx.Spec.TaskTemplate.Spec.DeepCopy(),
-	}
-	if task.Name == "" {
-		task.Name = fmt.Sprintf("%s-%d", batchSbx.Name, idx)
-	}
-	if task.Namespace == "" {
-		task.Namespace = batchSbx.Namespace
+// TODO: Consider handling container task dispatch with template & shardPatches under resource acceleration mode
+func getTaskSpec(batchSbx *sandboxv1alpha1.BatchSandbox, idx int) (*api.Task, error) {
+	task := &api.Task{
+		Name: fmt.Sprintf("%s-%d", batchSbx.Name, idx),
 	}
 	if len(batchSbx.Spec.ShardTaskPatches) > 0 && idx < len(batchSbx.Spec.ShardTaskPatches) {
+		taskTemplate := batchSbx.Spec.TaskTemplate.DeepCopy()
+		cloneBytes, _ := json.Marshal(taskTemplate)
 		patch := batchSbx.Spec.ShardTaskPatches[idx]
-		cloneBytes, _ := json.Marshal(task)
-		modified, err := strategicpatch.StrategicMergePatch(cloneBytes, patch.Raw, &sandboxv1alpha1.Task{})
+		modified, err := strategicpatch.StrategicMergePatch(cloneBytes, patch.Raw, &sandboxv1alpha1.TaskTemplateSpec{})
 		if err != nil {
 			return nil, fmt.Errorf("batchsandbox: failed to merge patch raw %s, idx %d, err %w", patch.Raw, idx, err)
 		}
-		newTask := &sandboxv1alpha1.Task{}
-		if err = json.Unmarshal(modified, newTask); err != nil {
-			return nil, fmt.Errorf("batchsandbox: failed to unmarshal %s to Task, idx %d, err %w", modified, idx, err)
+		newTaskTemplate := &sandboxv1alpha1.TaskTemplateSpec{}
+		if err = json.Unmarshal(modified, newTaskTemplate); err != nil {
+			return nil, fmt.Errorf("batchsandbox: failed to unmarshal %s to TaskTemplateSpec, idx %d, err %w", modified, idx, err)
 		}
-		*task = *newTask
+		task.Process = &api.Process{
+			Command:    newTaskTemplate.Spec.Process.Command,
+			Args:       newTaskTemplate.Spec.Process.Args,
+			Env:        newTaskTemplate.Spec.Process.Env,
+			WorkingDir: newTaskTemplate.Spec.Process.WorkingDir,
+		}
+	} else if batchSbx.Spec.TaskTemplate != nil && batchSbx.Spec.TaskTemplate.Spec.Process != nil {
+		task.Process = &api.Process{
+			Command:    batchSbx.Spec.TaskTemplate.Spec.Process.Command,
+			Args:       batchSbx.Spec.TaskTemplate.Spec.Process.Args,
+			Env:        batchSbx.Spec.TaskTemplate.Spec.Process.Env,
+			WorkingDir: batchSbx.Spec.TaskTemplate.Spec.Process.WorkingDir,
+		}
 	}
 	return task, nil
 }
@@ -397,7 +405,7 @@ func (r *BatchSandboxReconciler) scheduleTasks(ctx context.Context, tSch tasksch
 		running, failed, succeed, unknown int32
 		pending                           int32
 	)
-	for i := 0; i < len(tasks); i++ {
+	for i := range len(tasks) {
 		task := tasks[i]
 		if task.GetPodName() == "" {
 			pending++
@@ -521,6 +529,21 @@ func (r *BatchSandboxReconciler) scaleBatchSandbox(ctx context.Context, batchSan
 		pod, err := utils.GetPodFromTemplate(podTemplateSpec, batchSandbox, metav1.NewControllerRef(batchSandbox, sandboxv1alpha1.SchemeBuilder.GroupVersion.WithKind("BatchSandbox")))
 		if err != nil {
 			return err
+		}
+		// Apply shard patch if available for this index
+		if len(batchSandbox.Spec.ShardPatches) > 0 && idx < len(batchSandbox.Spec.ShardPatches) {
+			podBytes, err := json.Marshal(pod)
+			if err != nil {
+				return fmt.Errorf("failed to marshal pod: %w", err)
+			}
+			patch := batchSandbox.Spec.ShardPatches[idx]
+			modifiedPodBytes, err := strategicpatch.StrategicMergePatch(podBytes, patch.Raw, &corev1.Pod{})
+			if err != nil {
+				return fmt.Errorf("failed to apply shard patch for index %d: %w", idx, err)
+			}
+			if err := json.Unmarshal(modifiedPodBytes, pod); err != nil {
+				return fmt.Errorf("failed to unmarshal patched pod for index %d: %w", idx, err)
+			}
 		}
 		if err := ctrl.SetControllerReference(pod, batchSandbox, r.Scheme); err != nil {
 			return err

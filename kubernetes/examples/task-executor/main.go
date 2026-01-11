@@ -20,7 +20,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	taskexecutor "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
@@ -34,11 +33,9 @@ func main() {
 	taskName := "example-task"
 	newTask := &taskexecutor.Task{
 		Name: taskName,
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"sh", "-c"},
-				Args:    []string{"echo 'Hello from SDK example!' && sleep 2 && echo 'Task done.'"},
-			},
+		Process: &taskexecutor.Process{
+			Command: []string{"sh", "-c"},
+			Args:    []string{"echo 'Hello from SDK example!' && sleep 2 && echo 'Task done.'"},
 		},
 	}
 
@@ -66,8 +63,8 @@ func main() {
 		fmt.Printf("Current state: %s\n", state)
 
 		// Check if task is finished
-		if currentTask.Status.State.Terminated != nil {
-			fmt.Printf("Task finished with exit code: %d\n", currentTask.Status.State.Terminated.ExitCode)
+		if currentTask.ProcessStatus.Terminated != nil {
+			fmt.Printf("Task finished with exit code: %d\n", currentTask.ProcessStatus.Terminated.ExitCode)
 			break
 		}
 
@@ -89,14 +86,14 @@ func getTaskState(task *taskexecutor.Task) string {
 	if task == nil {
 		return "Unknown"
 	}
-	if task.Status.State.Running != nil {
+	if task.ProcessStatus.Running != nil {
 		return "Running"
 	}
-	if task.Status.State.Terminated != nil {
+	if task.ProcessStatus.Terminated != nil {
 		return "Terminated"
 	}
-	if task.Status.State.Waiting != nil {
-		return fmt.Sprintf("Waiting (%s)", task.Status.State.Waiting.Reason)
+	if task.ProcessStatus.Waiting != nil {
+		return fmt.Sprintf("Waiting (%s)", task.ProcessStatus.Waiting.Reason)
 	}
 	return "Pending"
 }

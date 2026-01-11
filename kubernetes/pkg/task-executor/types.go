@@ -15,9 +15,8 @@
 package task_executor
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 )
 
 // Task represents the internal local task resource (LocalTask)
@@ -26,11 +25,73 @@ type Task struct {
 	Name              string       `json:"name"`
 	DeletionTimestamp *metav1.Time `json:"deletionTimestamp,omitempty"`
 
-	// Spec defines the desired behavior of the task.
-	// We reuse the v1alpha1.TaskSpec to ensure consistency with the controller API.
-	Spec v1alpha1.TaskSpec `json:"spec"`
+	Process         *Process
+	PodTemplateSpec *corev1.PodTemplateSpec
 
-	// Status describes the current state of the task.
-	// We reuse the v1alpha1.TaskStatus to ensure consistency with the controller API.
-	Status v1alpha1.TaskStatus `json:"status"`
+	ProcessStatus *ProcessStatus
+	PodStatus     *corev1.PodStatus
+}
+
+type Process struct {
+	// Command command
+	Command []string `json:"command"`
+	// Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
+	// List of environment variables to set in the process.
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// WorkingDir process working directory.
+	WorkingDir string `json:"workingDir,omitempty"`
+}
+
+// ProcessStatus holds a possible state of process.
+// Only one of its members may be specified.
+// If none of them is specified, the default one is Waiting.
+type ProcessStatus struct {
+	// Details about a waiting process
+	// +optional
+	Waiting *Waiting `json:"waiting,omitempty"`
+	// Details about a running process
+	// +optional
+	Running *Running `json:"running,omitempty"`
+	// Details about a terminated process
+	// +optional
+	Terminated *Terminated `json:"terminated,omitempty"`
+}
+
+// Waiting is a waiting state of a process.
+type Waiting struct {
+	// (brief) reason the process is not yet running.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Message regarding why the process is not yet running.
+	// +optional
+	Message string `json:"message,omitempty"`
+}
+
+// Running is a running state of a process.
+type Running struct {
+	// Time at which the process was last (re-)started
+	// +optional
+	StartedAt metav1.Time `json:"startedAt"`
+}
+
+// Terminated is a terminated state of a process.
+type Terminated struct {
+	// Exit status from the last termination of the process
+	ExitCode int32 `json:"exitCode"`
+	// Signal from the last termination of the process
+	// +optional
+	Signal int32 `json:"signal,omitempty"`
+	// (brief) reason from the last termination of the process
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Message regarding the last termination of the process
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Time at which previous execution of the process started
+	// +optional
+	StartedAt metav1.Time `json:"startedAt,omitempty"`
+	// Time at which the process last terminated
+	// +optional
+	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
 }

@@ -22,26 +22,28 @@ spec:
         - /dev/null
   expireTime: "2025-12-03T12:55:41Z"
   taskTemplate:
-    metadata:
-      labels:
-        app.task: task
     spec:
-      container: # container mode
-        image: example.com/agent-task:latest
+      process:
         command:
-        - /usr/bin/sleep
+        - sleep
         args:
-        - "1"
-  shardTaskPatches: # patch list for container tasks
+        - infinite
+        env:
+        - name: foo
+          value: bar
+  shardTaskPatches:
   - spec:
-      container:
-        command: # patch command and args, the final command is `python -m http.server 8080`
+      process:
+        command: # patch command and args, the final command is `python -m http.server 8080` with process envs(foo=bar)
         - python
         args:
         - -m
         - http.server
         - "8080"
   - spec:
-      container:
-        args: # patch args only, the final command is `/usr/bin/sleep 456`
-        - "456"
+      process:
+        args: # patch args, the final command is `sleep 3600` with process envs(foo=bar;hello=world)
+        - 3600
+        env:
+        - name: hello
+          value: world

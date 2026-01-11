@@ -63,7 +63,7 @@ func (e *compositeExecutor) getDelegate(task *types.Task) (Executor, error) {
 		return nil, fmt.Errorf("task cannot be nil")
 	}
 	executor := e.processExec
-	if task.Spec.Container != nil {
+	if task.Process == nil {
 		executor = e.containerExec
 	}
 	if executor == nil {

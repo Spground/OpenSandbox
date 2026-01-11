@@ -22,12 +22,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
+	"github.com/stretchr/testify/assert"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/utils"
-	"github.com/stretchr/testify/assert"
-	corev1 "k8s.io/api/core/v1"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 func setupTestExecutor(t *testing.T) (Executor, string) {
@@ -56,10 +57,8 @@ func TestProcessExecutor_Lifecycle(t *testing.T) {
 	// 1. Create a task that runs for a while
 	task := &types.Task{
 		Name: "long-running",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"/bin/sh", "-c", "sleep 10"},
-			},
+		Process: &api.Process{
+			Command: []string{"/bin/sh", "-c", "sleep 10"},
 		},
 	}
 
@@ -112,10 +111,8 @@ func TestProcessExecutor_ShortLived(t *testing.T) {
 
 	task := &types.Task{
 		Name: "short-lived",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "done"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "done"},
 		},
 	}
 	taskDir, err := utils.SafeJoin(pExecutor.rootDir, task.Name)
@@ -152,10 +149,8 @@ func TestProcessExecutor_Failure(t *testing.T) {
 
 	task := &types.Task{
 		Name: "failing-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"/bin/sh", "-c", "exit 1"},
-			},
+		Process: &api.Process{
+			Command: []string{"/bin/sh", "-c", "exit 1"},
 		},
 	}
 	taskDir, err := utils.SafeJoin(pExecutor.rootDir, task.Name)
@@ -190,8 +185,8 @@ func TestProcessExecutor_InvalidArgs(t *testing.T) {
 
 	// Missing process spec
 	task := &types.Task{
-		Name: "invalid",
-		Spec: v1alpha1.TaskSpec{},
+		Name:    "invalid",
+		Process: &api.Process{},
 	}
 	if err := exec.Start(ctx, task); err == nil {
 		t.Error("Start should fail with missing process spec")
@@ -265,12 +260,10 @@ func TestProcessExecutor_EnvInheritance(t *testing.T) {
 	// 2. Define Task with Custom Env
 	task := &types.Task{
 		Name: "env-test",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"env"},
-				Env: []corev1.EnvVar{
-					{Name: "TASK_TEST_VAR", Value: "task_value"},
-				},
+		Process: &api.Process{
+			Command: []string{"env"},
+			Env: []corev1.EnvVar{
+				{Name: "TASK_TEST_VAR", Value: "task_value"},
 			},
 		},
 	}

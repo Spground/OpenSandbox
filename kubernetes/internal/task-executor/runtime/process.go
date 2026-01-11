@@ -63,10 +63,10 @@ func (e *processExecutor) Start(ctx context.Context, task *types.Task) error {
 
 	// 1. Construct the user command securely
 	var cmdList []string
-	if task.Spec.Process != nil {
-		cmdList = append(task.Spec.Process.Command, task.Spec.Process.Args...)
+	if task.Process != nil {
+		cmdList = append(task.Process.Command, task.Process.Args...)
 	} else {
-		return fmt.Errorf("process spec is required for process executor but task.Spec.Process is nil (task name: %s)", task.Name)
+		return fmt.Errorf("process spec is required for process executor but task.Process is nil (task name: %s)", task.Name)
 	}
 
 	if len(cmdList) == 0 {
@@ -152,18 +152,20 @@ func (e *processExecutor) executeCommand(task *types.Task, cmd *exec.Cmd, pidPat
 	cmd.Stderr = stderrFile
 
 	// Apply environment variables from ProcessTask spec
-	if task.Spec.Process != nil {
+	if task.Process != nil {
+		// Start with current environment
+		cmd.Env = os.Environ()
 		// Add task-specific environment variables
-		for _, env := range task.Spec.Process.Env {
+		for _, env := range task.Process.Env {
 			if env.Name != "" {
 				cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", env.Name, env.Value))
 			}
 		}
 
 		// Apply working directory
-		if task.Spec.Process.WorkingDir != "" {
-			cmd.Dir = task.Spec.Process.WorkingDir
-			klog.InfoS("Set working directory", "name", task.Name, "workingDir", task.Spec.Process.WorkingDir)
+		if task.Process.WorkingDir != "" {
+			cmd.Dir = task.Process.WorkingDir
+			klog.InfoS("Set working directory", "name", task.Name, "workingDir", task.Process.WorkingDir)
 		}
 	}
 

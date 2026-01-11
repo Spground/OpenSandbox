@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
@@ -110,10 +109,8 @@ var _ = Describe("Task Executor E2E", Ordered, func() {
 			By("Creating task")
 			task := &api.Task{
 				Name: taskName,
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
-						Command: []string{"sleep", "2"},
-					},
+				Process: &api.Process{
+					Command: []string{"sleep", "2"},
 				},
 			}
 			_, err := client.Set(context.Background(), task)
@@ -127,12 +124,13 @@ var _ = Describe("Task Executor E2E", Ordered, func() {
 				g.Expect(got.Name).To(Equal(taskName))
 
 				// Verify state
-				if got.Status.State.Terminated != nil {
-					g.Expect(got.Status.State.Terminated.ExitCode).To(BeZero())
-					g.Expect(got.Status.State.Terminated.Reason).To(Equal("Succeeded"))
+				if got.ProcessStatus != nil && got.ProcessStatus.Terminated != nil {
+					g.Expect(got.ProcessStatus.Terminated.ExitCode).To(BeZero())
+					g.Expect(got.ProcessStatus.Terminated.Reason).To(Equal("Succeeded"))
 				} else {
 					// Fail if not terminated yet (so Eventually retries)
-					g.Expect(got.Status.State.Terminated).NotTo(BeNil(), "Task status: %v", got.Status.State)
+					g.Expect(got.ProcessStatus).NotTo(BeNil(), "Task ProcessStatus is nil")
+					g.Expect(got.ProcessStatus.Terminated).NotTo(BeNil(), "Task status: %v", got.ProcessStatus)
 				}
 			}, 10*time.Second, 1*time.Second).Should(Succeed())
 		})
@@ -157,10 +155,8 @@ var _ = Describe("Task Executor E2E", Ordered, func() {
 			By("Creating task running 'env'")
 			task := &api.Task{
 				Name: taskName,
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
-						Command: []string{"env"},
-					},
+				Process: &api.Process{
+					Command: []string{"env"},
 				},
 			}
 			_, err := client.Set(context.Background(), task)
@@ -172,8 +168,8 @@ var _ = Describe("Task Executor E2E", Ordered, func() {
 				g.Expect(err).NotTo(HaveOccurred())
 				g.Expect(got).NotTo(BeNil())
 				g.Expect(got.Name).To(Equal(taskName))
-				g.Expect(got.Status.State.Terminated).NotTo(BeNil())
-				g.Expect(got.Status.State.Terminated.ExitCode).To(BeZero())
+				g.Expect(got.ProcessStatus.Terminated).NotTo(BeNil())
+				g.Expect(got.ProcessStatus.Terminated.ExitCode).To(BeZero())
 			}, 10*time.Second, 1*time.Second).Should(Succeed())
 
 			By("Verifying stdout contains target container env")

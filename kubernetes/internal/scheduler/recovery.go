@@ -71,7 +71,7 @@ func (sch *defaultTaskScheduler) recoverTaskNodesStatus() error {
 
 func recoverOneTaskNode(tNode *taskNode, currentTask *api.Task, ip string, podName string) {
 	tNode.Status = currentTask
-	tNode.transTaskState(parseTaskState(&currentTask.Status))
+	tNode.transTaskState(parseTaskState(currentTask))
 	tNode.IP = ip
 	tNode.PodName = podName
 	if currentTask.DeletionTimestamp != nil {

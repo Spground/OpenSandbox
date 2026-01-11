@@ -10,12 +10,3 @@ spec:
   replicas: 1
   poolRef: pool-sample
   expireTime: "2026-12-03T12:55:41Z"
-  taskTemplate:
-    metadata:
-      labels:
-        app.task: task
-      name: task-sample
-    spec:
-      process:
-        command:
-          - /opt/opensandbox/code-interpreter.sh

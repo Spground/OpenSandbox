@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/manager"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
@@ -248,8 +247,8 @@ func (h *Handler) convertAPIToInternalTask(apiTask *api.Task) *types.Task {
 		return nil
 	}
 	task := &types.Task{
-		Name: apiTask.Name,
-		Spec: apiTask.Spec,
+		Name:    apiTask.Name,
+		Process: apiTask.Process,
 	}
 	// Initialize default status
 	task.Status = types.Status{
@@ -266,31 +265,29 @@ func convertInternalToAPITask(task *types.Task) *api.Task {
 	}
 
 	apiTask := &api.Task{
-		Name: task.Name,
-		Spec: task.Spec,
+		Name:    task.Name,
+		Process: task.Process,
 	}
 
-	// Map internal Status to v1alpha1.TaskStatus
-	apiStatus := v1alpha1.TaskStatus{
-		State: v1alpha1.TaskState{},
-	}
+	// Map internal Status to api.ProcessStatus
+	apiStatus := &api.ProcessStatus{}
 
 	switch task.Status.State {
 	case types.TaskStatePending:
-		apiStatus.State.Waiting = &v1alpha1.TaskStateWaiting{
+		apiStatus.Waiting = &api.Waiting{
 			Reason: task.Status.Reason,
 		}
 	case types.TaskStateRunning:
 		if task.Status.StartedAt != nil {
 			t := metav1.NewTime(*task.Status.StartedAt)
-			apiStatus.State.Running = &v1alpha1.TaskStateRunning{
+			apiStatus.Running = &api.Running{
 				StartedAt: t,
 			}
 		} else {
-			apiStatus.State.Running = &v1alpha1.TaskStateRunning{}
+			apiStatus.Running = &api.Running{}
 		}
 	case types.TaskStateSucceeded, types.TaskStateFailed:
-		term := &v1alpha1.TaskStateTerminated{
+		term := &api.Terminated{
 			ExitCode: int32(task.Status.ExitCode),
 			Reason:   task.Status.Reason,
 			Message:  task.Status.Message,
@@ -303,13 +300,13 @@ func convertInternalToAPITask(task *types.Task) *api.Task {
 			t := metav1.NewTime(*task.Status.FinishedAt)
 			term.FinishedAt = t
 		}
-		apiStatus.State.Terminated = term
+		apiStatus.Terminated = term
 	default:
-		apiStatus.State.Waiting = &v1alpha1.TaskStateWaiting{
+		apiStatus.Waiting = &api.Waiting{
 			Reason: "Unknown",
 		}
 	}
 
-	apiTask.Status = apiStatus
+	apiTask.ProcessStatus = apiStatus
 	return apiTask
 }

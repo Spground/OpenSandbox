@@ -21,10 +21,14 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,14 +47,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
 	sandboxv1alpha1 "github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	taskscheduler "github.com/alibaba/OpenSandbox/sandbox-k8s/internal/scheduler"
 	mock_scheduler "github.com/alibaba/OpenSandbox/sandbox-k8s/internal/scheduler/mock"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/fieldindex"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 func init() {
@@ -251,6 +252,110 @@ var _ = Describe("BatchSandbox Controller", func() {
 					g.Expect(len(pods)).To(BeZero())
 				},
 				timeout, interval).Should(Succeed())
+		})
+	})
+
+	// None Pooling Mode - Heterogeneous Pods
+	Context("When create new batch sandbox with ShardPatches, create heterogeneous pods", func() {
+		const resourceBaseName = "test-batch-sandbox-shard"
+
+		ctx := context.Background()
+
+		typeNamespacedName := types.NamespacedName{
+			Name:      resourceBaseName,
+			Namespace: "default",
+		}
+
+		BeforeEach(func() {
+			typeNamespacedName.Name = fmt.Sprintf("%s-%s", resourceBaseName, rand.String(5))
+			By(fmt.Sprintf("creating the custom resource %s for the Kind BatchSandbox with ShardPatches", typeNamespacedName))
+			resource := &sandboxv1alpha1.BatchSandbox{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      typeNamespacedName.Name,
+					Namespace: typeNamespacedName.Namespace,
+				},
+				Spec: sandboxv1alpha1.BatchSandboxSpec{
+					Replicas: ptr.To(int32(3)),
+					Template: &v1.PodTemplateSpec{
+						Spec: v1.PodSpec{
+							Containers: []v1.Container{
+								{
+									Name:    "main",
+									Image:   "example.com",
+									Command: []string{"default-command"},
+								},
+							},
+						},
+					},
+					ShardPatches: []runtime.RawExtension{
+						{
+							Raw: []byte(`{"spec":{"containers":[{"name":"main","command":["custom-command-0"]}]}}`),
+						},
+						{
+							Raw: []byte(`{"spec":{"containers":[{"name":"main","command":["custom-command-1"]}]}}`),
+						},
+						{
+							Raw: []byte(`{"spec":{"containers":[{"name":"main","command":["custom-command-2"]}]}}`),
+						},
+					},
+				},
+			}
+			Expect(k8sClient.Create(ctx, resource)).Should(Succeed())
+			bs := &sandboxv1alpha1.BatchSandbox{}
+			Eventually(func(g Gomega) {
+				g.Expect(k8sClient.Get(ctx, typeNamespacedName, bs)).To(Succeed())
+			}, timeout, interval).Should(Succeed())
+			By(fmt.Sprintf("wait the custom resource %s created", typeNamespacedName))
+		})
+
+		AfterEach(func() {
+			resource := &sandboxv1alpha1.BatchSandbox{}
+			err := k8sClient.Get(ctx, typeNamespacedName, resource)
+			if !errors.IsNotFound(err) {
+				Expect(err).NotTo(HaveOccurred())
+			} else {
+				return
+			}
+			By(fmt.Sprintf("Cleanup the specific resource instance BatchSandbox %s", typeNamespacedName))
+			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
+		})
+
+		It("should successfully create heterogeneous pods with different commands", func() {
+			Eventually(func(g Gomega) {
+				bs := &sandboxv1alpha1.BatchSandbox{}
+				if err := k8sClient.Get(ctx, typeNamespacedName, bs); err != nil {
+					return
+				}
+				allPods := &corev1.PodList{}
+				g.Expect(k8sClient.List(ctx, allPods, &client.ListOptions{Namespace: bs.Namespace})).Should(Succeed())
+				pods := []*corev1.Pod{}
+				for i := range allPods.Items {
+					po := &allPods.Items[i]
+					if metav1.IsControlledBy(po, bs) {
+						pods = append(pods, po)
+					}
+				}
+				g.Expect(len(pods)).To(Equal(int(*bs.Spec.Replicas)))
+
+				// Verify each pod has the correct patched command
+				for _, pod := range pods {
+					indexLabel := pod.Labels[LabelBatchSandboxPodIndexKey]
+					g.Expect(indexLabel).NotTo(BeEmpty())
+					idx, err := strconv.Atoi(indexLabel)
+					g.Expect(err).NotTo(HaveOccurred())
+					g.Expect(idx).To(BeNumerically(">=", 0))
+					g.Expect(idx).To(BeNumerically("<", int(*bs.Spec.Replicas)))
+
+					// Verify the command was patched
+					g.Expect(len(pod.Spec.Containers)).To(BeNumerically(">", 0))
+					mainContainer := pod.Spec.Containers[0]
+					expectedCommand := fmt.Sprintf("custom-command-%d", idx)
+					g.Expect(mainContainer.Command).To(Equal([]string{expectedCommand}))
+				}
+
+				g.Expect(bs.Status.ObservedGeneration).To(Equal(bs.Generation))
+				g.Expect(bs.Status.Replicas).To(Equal(*bs.Spec.Replicas))
+			}, timeout, interval).Should(Succeed())
 		})
 	})
 
@@ -599,7 +704,7 @@ func Test_getTaskSpec(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *sandboxv1alpha1.Task
+		want    *api.Task
 		wantErr bool
 	}{
 		{
@@ -612,11 +717,6 @@ func Test_getTaskSpec(t *testing.T) {
 					},
 					Spec: sandboxv1alpha1.BatchSandboxSpec{
 						TaskTemplate: &sandboxv1alpha1.TaskTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app": "test",
-								},
-							},
 							Spec: sandboxv1alpha1.TaskSpec{
 								Process: &sandboxv1alpha1.ProcessTask{
 									Command: []string{"echo", "hello"},
@@ -627,16 +727,10 @@ func Test_getTaskSpec(t *testing.T) {
 				},
 				idx: 0,
 			},
-			want: &sandboxv1alpha1.Task{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-				Spec: sandboxv1alpha1.TaskSpec{
-					Process: &sandboxv1alpha1.ProcessTask{
-						Command: []string{"echo", "hello"},
-					},
+			want: &api.Task{
+				Name: "test-bs-0",
+				Process: &api.Process{
+					Command: []string{"echo", "hello"},
 				},
 			},
 			wantErr: false,
@@ -651,11 +745,6 @@ func Test_getTaskSpec(t *testing.T) {
 					},
 					Spec: sandboxv1alpha1.BatchSandboxSpec{
 						TaskTemplate: &sandboxv1alpha1.TaskTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app": "test",
-								},
-							},
 							Spec: sandboxv1alpha1.TaskSpec{
 								Process: &sandboxv1alpha1.ProcessTask{
 									Command: []string{"echo", "hello"},
@@ -671,16 +760,10 @@ func Test_getTaskSpec(t *testing.T) {
 				},
 				idx: 0,
 			},
-			want: &sandboxv1alpha1.Task{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-				Spec: sandboxv1alpha1.TaskSpec{
-					Process: &sandboxv1alpha1.ProcessTask{
-						Command: []string{"echo", "world"},
-					},
+			want: &api.Task{
+				Name: "test-bs-0",
+				Process: &api.Process{
+					Command: []string{"echo", "world"},
 				},
 			},
 			wantErr: false,
@@ -695,11 +778,6 @@ func Test_getTaskSpec(t *testing.T) {
 					},
 					Spec: sandboxv1alpha1.BatchSandboxSpec{
 						TaskTemplate: &sandboxv1alpha1.TaskTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app": "test",
-								},
-							},
 							Spec: sandboxv1alpha1.TaskSpec{
 								Process: &sandboxv1alpha1.ProcessTask{
 									Command: []string{"echo", "hello"},
@@ -728,11 +806,6 @@ func Test_getTaskSpec(t *testing.T) {
 					},
 					Spec: sandboxv1alpha1.BatchSandboxSpec{
 						TaskTemplate: &sandboxv1alpha1.TaskTemplateSpec{
-							ObjectMeta: metav1.ObjectMeta{
-								Labels: map[string]string{
-									"app": "test",
-								},
-							},
 							Spec: sandboxv1alpha1.TaskSpec{
 								Process: &sandboxv1alpha1.ProcessTask{
 									Command: []string{"echo", "hello"},
@@ -746,18 +819,12 @@ func Test_getTaskSpec(t *testing.T) {
 						},
 					},
 				},
-				idx: 1, // Index out of range, should use base template
+				idx: 1,
 			},
-			want: &sandboxv1alpha1.Task{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{
-						"app": "test",
-					},
-				},
-				Spec: sandboxv1alpha1.TaskSpec{
-					Process: &sandboxv1alpha1.ProcessTask{
-						Command: []string{"echo", "hello"},
-					},
+			want: &api.Task{
+				Name: "test-bs-1",
+				Process: &api.Process{
+					Command: []string{"echo", "hello"},
 				},
 			},
 			wantErr: false,
@@ -771,11 +838,11 @@ func Test_getTaskSpec(t *testing.T) {
 				return
 			}
 			if !tt.wantErr {
-				if !reflect.DeepEqual(got.ObjectMeta.Labels, tt.want.ObjectMeta.Labels) {
-					t.Errorf("getTaskSpec() labels = %v, want %v", got.ObjectMeta.Labels, tt.want.ObjectMeta.Labels)
+				if got.Name != tt.want.Name {
+					t.Errorf("getTaskSpec() name = %v, want %v", got.Name, tt.want.Name)
 				}
-				if !reflect.DeepEqual(got.Spec, tt.want.Spec) {
-					t.Errorf("getTaskSpec() spec = %v, want %v", got.Spec, tt.want.Spec)
+				if !reflect.DeepEqual(got.Process, tt.want.Process) {
+					t.Errorf("getTaskSpec() spec = %v, want %v", got.Process, tt.want.Process)
 				}
 			}
 		})

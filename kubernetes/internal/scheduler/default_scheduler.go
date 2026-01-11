@@ -25,7 +25,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	sandboxv1alpha1 "github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
@@ -39,9 +38,14 @@ var (
 	}
 )
 
+type taskSpec struct {
+	Process         *api.Process
+	PodTemplateSpec *corev1.PodTemplateSpec
+}
+
 type taskNode struct {
 	metav1.ObjectMeta
-	Spec v1alpha1.TaskSpec
+	Spec taskSpec
 
 	// status
 	Status  *api.Task
@@ -166,7 +170,7 @@ type defaultTaskScheduler struct {
 	name                      string
 }
 
-func newTaskScheduler(name string, tasks []*sandboxv1alpha1.Task, pods []*corev1.Pod, resPolicyWhenTaskComplete sandboxv1alpha1.TaskResourcePolicy) (*defaultTaskScheduler, error) {
+func newTaskScheduler(name string, tasks []*api.Task, pods []*corev1.Pod, resPolicyWhenTaskComplete sandboxv1alpha1.TaskResourcePolicy) (*defaultTaskScheduler, error) {
 	sch := &defaultTaskScheduler{
 		allPods:                   pods,
 		maxConcurrency:            defaultSchConcurrency,
@@ -229,19 +233,19 @@ func (sch *defaultTaskScheduler) StopTask() []Task {
 	return deletedTask
 }
 
-func initTaskNodes(tasks []*sandboxv1alpha1.Task) ([]*taskNode, error) {
+func initTaskNodes(tasks []*api.Task) ([]*taskNode, error) {
 	size := len(tasks)
 	taskNodes := make([]*taskNode, size)
 	for idx := 0; idx < size; idx++ {
 		task := tasks[idx]
 		tNode := &taskNode{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   task.Namespace,
-				Name:        task.Name,
-				Labels:      task.Labels,
-				Annotations: task.Annotations,
+				Name: task.Name,
 			},
-			Spec: task.Spec,
+			Spec: taskSpec{
+				Process:         task.Process,
+				PodTemplateSpec: task.PodTemplateSpec,
+			},
 		}
 		taskNodes[idx] = tNode
 	}
@@ -266,20 +270,44 @@ func (sch *defaultTaskScheduler) collectTaskStatus(taskNodes []*taskNode) {
 		task, ok := tasks[tNode.IP]
 		tNode.Status = task
 		if ok && task != nil {
-			tNode.transTaskState(parseTaskState(&task.Status))
+			tNode.transTaskState(parseTaskState(task))
 		}
 	}
 }
 
-func parseTaskState(taskStatus *v1alpha1.TaskStatus) TaskState {
-	if taskStatus.State.Running != nil {
+func parseTaskState(task *api.Task) TaskState {
+	if task.ProcessStatus != nil {
+		return parseProcessTaskState(task.ProcessStatus)
+	}
+	if task.PodStatus != nil {
+		return parsePodTaskState(task.PodStatus)
+	}
+	return UnknownTaskState
+}
+
+func parseProcessTaskState(status *api.ProcessStatus) TaskState {
+	if status.Running != nil {
 		return RunningTaskState
-	} else if taskStatus.State.Terminated != nil {
-		if taskStatus.State.Terminated.ExitCode == 0 {
+	} else if status.Terminated != nil {
+		if status.Terminated.ExitCode == 0 {
 			return SucceedTaskState
 		} else {
 			return FailedTaskState
 		}
+	}
+	return UnknownTaskState
+}
+
+func parsePodTaskState(status *corev1.PodStatus) TaskState {
+	switch status.Phase {
+	case corev1.PodRunning:
+		if utils.IsPodReadyConditionTrue(*status) {
+			return RunningTaskState
+		}
+	case corev1.PodSucceeded:
+		return SucceedTaskState
+	case corev1.PodFailed:
+		return FailedTaskState
 	}
 	return UnknownTaskState
 }
@@ -368,8 +396,9 @@ func scheduleSingleTaskNode(tNode *taskNode, taskClientCreator func(endpoint str
 			// no need to setTask if task is completed to avoid unnecessary network overhead
 			if !tNode.isTaskCompleted() {
 				task := &api.Task{
-					Name: tNode.Name,
-					Spec: tNode.Spec,
+					Name:            tNode.Name,
+					Process:         tNode.Spec.Process,
+					PodTemplateSpec: tNode.Spec.PodTemplateSpec,
 				}
 				_, err := setTask(taskClientCreator(tNode.IP), task)
 				if err != nil {

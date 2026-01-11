@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/runtime"
 	store "github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/storage"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 func setupTestManager(t *testing.T) (TaskManager, *config.Config) {
@@ -141,10 +141,8 @@ func TestTaskManager_Create(t *testing.T) {
 			name: "empty task name",
 			task: &types.Task{
 				Name: "",
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
-						Command: []string{"echo", "test"},
-					},
+				Process: &api.Process{
+					Command: []string{"echo", "test"},
 				},
 			},
 			wantErr: true,
@@ -153,10 +151,8 @@ func TestTaskManager_Create(t *testing.T) {
 			name: "valid task",
 			task: &types.Task{
 				Name: "test-task",
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
-						Command: []string{"sh", "-c", "echo hello && exit 0"},
-					},
+				Process: &api.Process{
+					Command: []string{"sh", "-c", "echo hello && exit 0"},
 				},
 			},
 			wantErr: false,
@@ -199,10 +195,8 @@ func TestTaskManager_CreateDuplicate(t *testing.T) {
 
 	task := &types.Task{
 		Name: "duplicate-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "test"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "test"},
 		},
 	}
 
@@ -229,10 +223,8 @@ func TestTaskManager_CreateMaxConcurrentTasks(t *testing.T) {
 
 	task1 := &types.Task{
 		Name: "task-1",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"sleep", "10"},
-			},
+		Process: &api.Process{
+			Command: []string{"sleep", "10"},
 		},
 	}
 
@@ -246,10 +238,8 @@ func TestTaskManager_CreateMaxConcurrentTasks(t *testing.T) {
 	// Try to create second task - should fail due to max concurrent limit
 	task2 := &types.Task{
 		Name: "task-2",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "test"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "test"},
 		},
 	}
 
@@ -269,10 +259,8 @@ func TestTaskManager_Get(t *testing.T) {
 
 	task := &types.Task{
 		Name: "get-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "get"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "get"},
 		},
 	}
 
@@ -330,10 +318,8 @@ func TestTaskManager_List(t *testing.T) {
 	// Create a task
 	task := &types.Task{
 		Name: "list-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "list"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "list"},
 		},
 	}
 
@@ -366,10 +352,8 @@ func TestTaskManager_Delete(t *testing.T) {
 
 	task := &types.Task{
 		Name: "delete-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "delete"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "delete"},
 		},
 	}
 
@@ -430,10 +414,8 @@ func TestTaskManager_Sync(t *testing.T) {
 	// Create initial task
 	task1 := &types.Task{
 		Name: "sync-task-1",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "1"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "1"},
 		},
 	}
 
@@ -445,10 +427,8 @@ func TestTaskManager_Sync(t *testing.T) {
 	// Sync with new desired state (task1 removed, task2 added)
 	task2 := &types.Task{
 		Name: "sync-task-2",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
-				Command: []string{"echo", "2"},
-			},
+		Process: &api.Process{
+			Command: []string{"echo", "2"},
 		},
 	}
 
