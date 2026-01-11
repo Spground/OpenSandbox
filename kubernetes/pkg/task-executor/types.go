@@ -15,9 +15,8 @@
 package task_executor
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 )
 
 // Task represents the internal local task resource (LocalTask)
@@ -28,9 +27,84 @@ type Task struct {
 
 	// Spec defines the desired behavior of the task.
 	// We reuse the v1alpha1.TaskSpec to ensure consistency with the controller API.
-	Spec v1alpha1.TaskSpec `json:"spec"`
+	Spec TaskSpec `json:"spec"`
 
 	// Status describes the current state of the task.
 	// We reuse the v1alpha1.TaskStatus to ensure consistency with the controller API.
-	Status v1alpha1.TaskStatus `json:"status"`
+	Status TaskStatus `json:"status"`
+}
+
+type TaskSpec struct {
+	Process *Process
+	Pod     *corev1.PodTemplate
+}
+
+type Process struct {
+	// Command command
+	Command []string `json:"command"`
+	// Arguments to the entrypoint.
+	Args []string `json:"args,omitempty"`
+	// List of environment variables to set in the task.
+	Env []corev1.EnvVar `json:"env,omitempty"`
+	// WorkingDir task working directory.
+	WorkingDir string `json:"workingDir,omitempty"`
+}
+
+type TaskStatus struct {
+	// Details about the task's current condition.
+	// +optional
+	State TaskState `json:"state,omitempty"`
+}
+
+// TaskState holds a possible state of task.
+// Only one of its members may be specified.
+// If none of them is specified, the default one is TaskStateWaiting.
+type TaskState struct {
+	// Details about a waiting task
+	// +optional
+	Waiting *TaskStateWaiting `json:"waiting,omitempty"`
+	// Details about a running task
+	// +optional
+	Running *TaskStateRunning `json:"running,omitempty"`
+	// Details about a terminated task
+	// +optional
+	Terminated *TaskStateTerminated `json:"terminated,omitempty"`
+}
+
+// TaskStateWaiting is a waiting state of a task.
+type TaskStateWaiting struct {
+	// (brief) reason the task is not yet running.
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Message regarding why the task is not yet running.
+	// +optional
+	Message string `json:"message,omitempty"`
+}
+
+// TaskStateRunning is a running state of a task.
+type TaskStateRunning struct {
+	// Time at which the task was last (re-)started
+	// +optional
+	StartedAt metav1.Time `json:"startedAt,omitempty"`
+}
+
+// TaskStateTerminated is a terminated state of a task.
+type TaskStateTerminated struct {
+	// Exit status from the last termination of the task
+	ExitCode int32 `json:"exitCode"`
+	// Signal from the last termination of the task
+	// +optional
+	Signal int32 `json:"signal,omitempty"`
+	// (brief) reason from the last termination of the task
+	// +optional
+	Reason string `json:"reason,omitempty"`
+	// Message regarding the last termination of the task
+	// +optional
+	Message string `json:"message,omitempty"`
+	// Time at which previous execution of the task started
+	// +optional
+	StartedAt metav1.Time `json:"startedAt,omitempty"`
+	// Time at which the task last terminated
+	// +optional
+	FinishedAt metav1.Time `json:"finishedAt,omitempty"`
 }

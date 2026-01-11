@@ -15,9 +15,10 @@
 package scheduler
 
 import (
-	corev1 "k8s.io/api/core/v1"
-
 	sandboxv1alpha1 "github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
+	apis "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 type TaskScheduler interface {
@@ -27,6 +28,6 @@ type TaskScheduler interface {
 	StopTask() []Task
 }
 
-func NewTaskScheduler(name string, tasks []*sandboxv1alpha1.Task, pods []*corev1.Pod, resPolicyWhenTaskCompleted sandboxv1alpha1.TaskResourcePolicy) (TaskScheduler, error) {
+func NewTaskScheduler(name string, tasks []*apis.Task, pods []*corev1.Pod, resPolicyWhenTaskCompleted sandboxv1alpha1.TaskResourcePolicy) (TaskScheduler, error) {
 	return newTaskScheduler(name, tasks, pods, resPolicyWhenTaskCompleted)
 }

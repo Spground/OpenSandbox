@@ -25,7 +25,6 @@ import (
 	"k8s.io/klog/v2"
 	"k8s.io/utils/ptr"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	sandboxv1alpha1 "github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
@@ -41,7 +40,7 @@ var (
 
 type taskNode struct {
 	metav1.ObjectMeta
-	Spec v1alpha1.TaskSpec
+	Spec api.TaskSpec
 
 	// status
 	Status  *api.Task
@@ -166,7 +165,7 @@ type defaultTaskScheduler struct {
 	name                      string
 }
 
-func newTaskScheduler(name string, tasks []*sandboxv1alpha1.Task, pods []*corev1.Pod, resPolicyWhenTaskComplete sandboxv1alpha1.TaskResourcePolicy) (*defaultTaskScheduler, error) {
+func newTaskScheduler(name string, tasks []*api.Task, pods []*corev1.Pod, resPolicyWhenTaskComplete sandboxv1alpha1.TaskResourcePolicy) (*defaultTaskScheduler, error) {
 	sch := &defaultTaskScheduler{
 		allPods:                   pods,
 		maxConcurrency:            defaultSchConcurrency,
@@ -229,17 +228,14 @@ func (sch *defaultTaskScheduler) StopTask() []Task {
 	return deletedTask
 }
 
-func initTaskNodes(tasks []*sandboxv1alpha1.Task) ([]*taskNode, error) {
+func initTaskNodes(tasks []*api.Task) ([]*taskNode, error) {
 	size := len(tasks)
 	taskNodes := make([]*taskNode, size)
 	for idx := 0; idx < size; idx++ {
 		task := tasks[idx]
 		tNode := &taskNode{
 			ObjectMeta: metav1.ObjectMeta{
-				Namespace:   task.Namespace,
-				Name:        task.Name,
-				Labels:      task.Labels,
-				Annotations: task.Annotations,
+				Name: task.Name,
 			},
 			Spec: task.Spec,
 		}
@@ -271,7 +267,7 @@ func (sch *defaultTaskScheduler) collectTaskStatus(taskNodes []*taskNode) {
 	}
 }
 
-func parseTaskState(taskStatus *v1alpha1.TaskStatus) TaskState {
+func parseTaskState(taskStatus *api.TaskStatus) TaskState {
 	if taskStatus.State.Running != nil {
 		return RunningTaskState
 	} else if taskStatus.State.Terminated != nil {

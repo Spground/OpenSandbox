@@ -92,11 +92,13 @@ spec:
               expireTime:
                 description: |-
                   ExpireTime - Absolute time when the batch-sandbox is deleted.
-                  If a time in the past is provided, the sandbox will be deleted immediately.
+                  If a time in the past is provided, the batch-sandbox will be deleted immediately.
                 format: date-time
                 type: string
               poolRef:
-                description: PoolRef Pool name
+                description: |-
+                  PoolRef references the Pool resource name for pooled sandbox creation.
+                  Mutually exclusive with Template - use PoolRef for pool-based allocation or Template for direct sandbox creation.
                 type: string
               replicas:
                 default: 1
@@ -104,6 +106,9 @@ spec:
                 format: int32
                 minimum: 0
                 type: integer
+              shardPatches:
+                description: ShardPatches indicates patching to the Template for BatchSandbox.
+                x-kubernetes-preserve-unknown-fields: true
               shardTaskPatches:
                 description: ShardTaskPatches indicates patching to the TaskTemplate
                   for individual Task.

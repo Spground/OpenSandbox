@@ -22,7 +22,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/klog/v2"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/manager"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
@@ -270,27 +269,27 @@ func convertInternalToAPITask(task *types.Task) *api.Task {
 		Spec: task.Spec,
 	}
 
-	// Map internal Status to v1alpha1.TaskStatus
-	apiStatus := v1alpha1.TaskStatus{
-		State: v1alpha1.TaskState{},
+	// Map internal Status to api.TaskStatus
+	apiStatus := api.TaskStatus{
+		State: api.TaskState{},
 	}
 
 	switch task.Status.State {
 	case types.TaskStatePending:
-		apiStatus.State.Waiting = &v1alpha1.TaskStateWaiting{
+		apiStatus.State.Waiting = &api.TaskStateWaiting{
 			Reason: task.Status.Reason,
 		}
 	case types.TaskStateRunning:
 		if task.Status.StartedAt != nil {
 			t := metav1.NewTime(*task.Status.StartedAt)
-			apiStatus.State.Running = &v1alpha1.TaskStateRunning{
+			apiStatus.State.Running = &api.TaskStateRunning{
 				StartedAt: t,
 			}
 		} else {
-			apiStatus.State.Running = &v1alpha1.TaskStateRunning{}
+			apiStatus.State.Running = &api.TaskStateRunning{}
 		}
 	case types.TaskStateSucceeded, types.TaskStateFailed:
-		term := &v1alpha1.TaskStateTerminated{
+		term := &api.TaskStateTerminated{
 			ExitCode: int32(task.Status.ExitCode),
 			Reason:   task.Status.Reason,
 			Message:  task.Status.Message,
@@ -305,7 +304,7 @@ func convertInternalToAPITask(task *types.Task) *api.Task {
 		}
 		apiStatus.State.Terminated = term
 	default:
-		apiStatus.State.Waiting = &v1alpha1.TaskStateWaiting{
+		apiStatus.State.Waiting = &api.TaskStateWaiting{
 			Reason: "Unknown",
 		}
 	}

@@ -26,7 +26,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 
-	sandboxv1alpha1 "github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
@@ -42,14 +41,14 @@ func Test_recoverOneTaskNode(t *testing.T) {
 	testNow := metav1.Time{Time: mockTimeNow}
 	testTask := &api.Task{
 		Name: "test",
-		Spec: sandboxv1alpha1.TaskSpec{
-			Container: &sandboxv1alpha1.ContainerTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"sleep"},
 			},
 		},
-		Status: sandboxv1alpha1.TaskStatus{
-			State: sandboxv1alpha1.TaskState{
-				Running: &sandboxv1alpha1.TaskStateRunning{
+		Status: api.TaskStatus{
+			State: api.TaskState{
+				Running: &api.TaskStateRunning{
 					StartedAt: testNow,
 				},
 			},
@@ -58,14 +57,14 @@ func Test_recoverOneTaskNode(t *testing.T) {
 	testReleasingTask := &api.Task{
 		Name:              "test",
 		DeletionTimestamp: &testNow,
-		Spec: sandboxv1alpha1.TaskSpec{
-			Container: &sandboxv1alpha1.ContainerTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"sleep"},
 			},
 		},
-		Status: sandboxv1alpha1.TaskStatus{
-			State: sandboxv1alpha1.TaskState{
-				Running: &sandboxv1alpha1.TaskStateRunning{
+		Status: api.TaskStatus{
+			State: api.TaskState{
+				Running: &api.TaskStateRunning{
 					StartedAt: testNow,
 				},
 			},
@@ -145,8 +144,8 @@ func Test_defaultTaskScheduler_recoverTaskNodesStatus(t *testing.T) {
 		ObjectMeta: v1.ObjectMeta{
 			Name: "bsbx-0",
 		},
-		Spec: sandboxv1alpha1.TaskSpec{
-			Container: &sandboxv1alpha1.ContainerTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"hello"},
 			},
 		},
@@ -154,9 +153,9 @@ func Test_defaultTaskScheduler_recoverTaskNodesStatus(t *testing.T) {
 	testTask := &api.Task{
 		Name: testTaskNode.Name,
 		Spec: testTaskNode.Spec,
-		Status: sandboxv1alpha1.TaskStatus{
-			State: sandboxv1alpha1.TaskState{
-				Running: &sandboxv1alpha1.TaskStateRunning{
+		Status: api.TaskStatus{
+			State: api.TaskState{
+				Running: &api.TaskStateRunning{
 					StartedAt: testNow,
 				},
 			},
@@ -166,8 +165,8 @@ func Test_defaultTaskScheduler_recoverTaskNodesStatus(t *testing.T) {
 		ObjectMeta: v1.ObjectMeta{
 			Name: "bsbx-0",
 		},
-		Spec: sandboxv1alpha1.TaskSpec{
-			Container: &sandboxv1alpha1.ContainerTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"hello"},
 			},
 		},

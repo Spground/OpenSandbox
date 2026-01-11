@@ -24,7 +24,6 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
@@ -109,8 +108,8 @@ var _ = Describe("Task Executor E2E", Ordered, func() {
 			By("Creating task")
 			task := &api.Task{
 				Name: taskName,
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
+				Spec: api.TaskSpec{
+					Process: &api.Process{
 						Command: []string{"sleep", "2"},
 					},
 				},

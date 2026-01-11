@@ -20,9 +20,6 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // BatchSandboxSpec defines the desired state of BatchSandbox.
 type BatchSandboxSpec struct {
 	// Replicas is the number of desired replicas.
@@ -30,7 +27,8 @@ type BatchSandboxSpec struct {
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:default=1
 	Replicas *int32 `json:"replicas,omitempty"`
-	// PoolRef Pool name
+	// PoolRef references the Pool resource name for pooled sandbox creation.
+	// Mutually exclusive with Template - use PoolRef for pool-based allocation or Template for direct sandbox creation.
 	// +optional
 	// +kubebuilder:validation:Optional
 	PoolRef string `json:"poolRef,omitempty"`
@@ -40,8 +38,14 @@ type BatchSandboxSpec struct {
 	// +kubebuilder:validation:Schemaless
 	// +kubebuilder:validation:Optional
 	Template *corev1.PodTemplateSpec `json:"template"`
+	// ShardPatches indicates patching to the Template for BatchSandbox.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +kubebuilder:validation:Schemaless
+	// +optional
+	// +kubebuilder:validation:Optional
+	ShardPatches []runtime.RawExtension `json:"shardPatches,omitempty"`
 	// ExpireTime - Absolute time when the batch-sandbox is deleted.
-	// If a time in the past is provided, the sandbox will be deleted immediately.
+	// If a time in the past is provided, the batch-sandbox will be deleted immediately.
 	// +optional
 	// +kubebuilder:validation:Format="date-time"
 	// +kubebuilder:validation:Optional
@@ -59,7 +63,6 @@ type BatchSandboxSpec struct {
 	// +optional
 	// +kubebuilder:validation:Optional
 	ShardTaskPatches []runtime.RawExtension `json:"shardTaskPatches,omitempty"`
-
 	// TaskResourcePolicyWhenCompleted specifies how resources should be handled once a task reaches a completed state (SUCCEEDED or FAILED).
 	// - Retain: Keep the resources until the BatchSandbox is deleted.
 	// - Release: Free the resources immediately when the task completes.
@@ -136,50 +139,17 @@ func init() {
 
 // TaskTemplateSpec task spec
 type TaskTemplateSpec struct {
-	// Standard object's metadata.
-	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-	// +optional
-	Spec TaskSpec `json:"spec,omitempty"`
-}
-
-type Task struct {
-	// +optional
-	metav1.ObjectMeta `json:"metadata,omitempty"`
 	// +optional
 	Spec TaskSpec `json:"spec,omitempty"`
 }
 
 type TaskSpec struct {
 	// +optional
-	Container *ContainerTask `json:"container,omitempty"`
-	// +optional
 	Process *ProcessTask `json:"process,omitempty"`
 	// TimeoutSeconds specifies the maximum duration in seconds for task execution.
 	// If exceeded, the task executor should terminate the task.
 	// +optional
 	TimeoutSeconds *int64 `json:"timeoutSeconds,omitempty"`
-}
-
-type ContainerTask struct {
-	// +kubebuilder:validation:Required
-	Image string `json:"image"`
-	// Command command
-	// +optional
-	Command []string `json:"command"`
-	// Arguments to the entrypoint.
-	// +optional
-	Args []string `json:"args,omitempty"`
-	// List of environment variables to set in the task.
-	// +optional
-	// +patchMergeKey=name
-	// +patchStrategy=merge
-	Env []corev1.EnvVar `json:"env,omitempty"`
-	// WorkingDir task working directory.
-	// +optional
-	WorkingDir string `json:"workingDir,omitempty"`
-	// more container fields add HERE
 }
 
 type ProcessTask struct {

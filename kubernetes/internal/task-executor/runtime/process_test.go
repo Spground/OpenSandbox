@@ -21,11 +21,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
+	"github.com/stretchr/testify/assert"
+
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/utils"
-	"github.com/stretchr/testify/assert"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 func setupTestExecutor(t *testing.T) (Executor, string) {
@@ -54,8 +55,8 @@ func TestProcessExecutor_Lifecycle(t *testing.T) {
 	// 1. Create a task that runs for a while
 	task := &types.Task{
 		Name: "long-running",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"/bin/sh", "-c", "sleep 10"},
 			},
 		},
@@ -110,8 +111,8 @@ func TestProcessExecutor_ShortLived(t *testing.T) {
 
 	task := &types.Task{
 		Name: "short-lived",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"echo", "done"},
 			},
 		},
@@ -150,8 +151,8 @@ func TestProcessExecutor_Failure(t *testing.T) {
 
 	task := &types.Task{
 		Name: "failing-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"/bin/sh", "-c", "exit 1"},
 			},
 		},
@@ -189,7 +190,7 @@ func TestProcessExecutor_InvalidArgs(t *testing.T) {
 	// Missing process spec
 	task := &types.Task{
 		Name: "invalid",
-		Spec: v1alpha1.TaskSpec{},
+		Spec: api.TaskSpec{},
 	}
 	if err := exec.Start(ctx, task); err == nil {
 		t.Error("Start should fail with missing process spec")

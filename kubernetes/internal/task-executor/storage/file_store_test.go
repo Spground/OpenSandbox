@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
+	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
 func TestNewFileStore(t *testing.T) {
@@ -53,8 +53,8 @@ func TestFileStore_CRUD(t *testing.T) {
 	ctx := context.Background()
 	task := &types.Task{
 		Name: "test-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"echo", "hello"},
 			},
 		},
@@ -209,8 +209,8 @@ func TestFileStore_Concurrency(t *testing.T) {
 		go func(id int) {
 			store.Update(ctx, &types.Task{
 				Name: taskName,
-				Spec: v1alpha1.TaskSpec{
-					Process: &v1alpha1.ProcessTask{
+				Spec: api.TaskSpec{
+					Process: &api.Process{
 						Args: []string{time.Now().String()},
 					},
 				},

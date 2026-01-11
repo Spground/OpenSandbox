@@ -20,7 +20,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	taskexecutor "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
 )
 
@@ -34,8 +33,8 @@ func main() {
 	taskName := "example-task"
 	newTask := &taskexecutor.Task{
 		Name: taskName,
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: taskexecutor.TaskSpec{
+			Process: &taskexecutor.Process{
 				Command: []string{"sh", "-c"},
 				Args:    []string{"echo 'Hello from SDK example!' && sleep 2 && echo 'Task done.'"},
 			},

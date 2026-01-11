@@ -24,7 +24,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/api/v1alpha1"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/config"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/task-executor/types"
 	api "github.com/alibaba/OpenSandbox/sandbox-k8s/pkg/task-executor"
@@ -115,8 +114,8 @@ func TestHandler_CreateTask(t *testing.T) {
 
 	task := api.Task{
 		Name: "test-task",
-		Spec: v1alpha1.TaskSpec{
-			Process: &v1alpha1.ProcessTask{
+		Spec: api.TaskSpec{
+			Process: &api.Process{
 				Command: []string{"echo"},
 			},
 		},
@@ -210,7 +209,7 @@ func TestHandler_SyncTasks(t *testing.T) {
 	h := NewHandler(mgr, cfg)
 
 	tasks := []api.Task{
-		{Name: "task-1", Spec: v1alpha1.TaskSpec{Process: &v1alpha1.ProcessTask{}}},
+		{Name: "task-1", Spec: api.TaskSpec{Process: &api.Process{}}},
 	}
 	body, _ := json.Marshal(tasks)
 
