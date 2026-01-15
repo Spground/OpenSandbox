@@ -25,11 +25,11 @@ type Task struct {
 	Name              string       `json:"name"`
 	DeletionTimestamp *metav1.Time `json:"deletionTimestamp,omitempty"`
 
-	Process         *Process
-	PodTemplateSpec *corev1.PodTemplateSpec
+	Process         *Process                `json:"process,omitempty"`
+	PodTemplateSpec *corev1.PodTemplateSpec `json:"podTemplateSpec,omitempty"`
 
-	ProcessStatus *ProcessStatus
-	PodStatus     *corev1.PodStatus
+	ProcessStatus *ProcessStatus    `json:"processStatus,omitempty"`
+	PodStatus     *corev1.PodStatus `json:"podStatus,omitempty"`
 }
 
 type Process struct {

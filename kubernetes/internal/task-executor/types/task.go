@@ -48,8 +48,8 @@ type Task struct {
 	Name              string     `json:"name"`
 	DeletionTimestamp *time.Time `json:"deletionTimestamp,omitempty"`
 
-	Process         *api.Process
-	PodTemplateSpec *corev1.PodTemplateSpec
+	Process         *api.Process            `json:"process"`
+	PodTemplateSpec *corev1.PodTemplateSpec `json:"podTemplateSpec"`
 
 	// Status is now a first-class citizen and persisted.
 	Status Status `json:"status"`
