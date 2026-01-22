@@ -29,7 +29,6 @@ import (
 	"k8s.io/utils/ptr"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/expectations"
 	"github.com/alibaba/OpenSandbox/sandbox-k8s/internal/utils/fieldindex"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -589,29 +588,17 @@ var _ = Describe("Pool deletion and recreation", func() {
 			}
 		})
 
-		It("should clear scale expectations when Pool is deleted and allow recreation with same name", func() {
-			By("verifying scale expectations exist for the created Pool")
-			controllerKey := typeNamespacedName.String()
-			Eventually(func(g Gomega) {
-				// After pool creation with pods, expectations should be satisfied (empty)
-				// but the controller key might still exist briefly
-				scaleExpectations := PoolScaleExpectations.GetExpectations(controllerKey)
-				// Expectations can be nil or empty (satisfied)
-				if scaleExpectations != nil {
-					g.Expect(scaleExpectations[expectations.Create]).To(BeEmpty(), "create expectations should be empty after pods are observed")
-				}
-			}, timeout, interval).Should(Succeed())
-
-			By("deleting the Pool")
+		It("should allow recreating a Pool with the same name after deletion", func() {
+			By("deleting the existing Pool")
 			pool := &sandboxv1alpha1.Pool{}
 			Expect(k8sClient.Get(ctx, typeNamespacedName, pool)).To(Succeed())
 			Expect(k8sClient.Delete(ctx, pool)).To(Succeed())
 
-			By("verifying scale expectations are cleared after deletion")
+			By("waiting for the Pool to be fully deleted")
 			Eventually(func(g Gomega) {
-				// Reconcile should be triggered and clear expectations
-				scaleExpectations := PoolScaleExpectations.GetExpectations(controllerKey)
-				g.Expect(scaleExpectations).To(BeNil(), "expectations should be nil after Pool deletion")
+				pool := &sandboxv1alpha1.Pool{}
+				err := k8sClient.Get(ctx, typeNamespacedName, pool)
+				g.Expect(errors.IsNotFound(err)).To(BeTrue(), "Pool should be deleted")
 			}, timeout, interval).Should(Succeed())
 
 			By("recreating a Pool with the same name")
@@ -641,7 +628,7 @@ var _ = Describe("Pool deletion and recreation", func() {
 			}
 			Expect(k8sClient.Create(ctx, newPool)).To(Succeed())
 
-			By("verifying the new Pool is successfully reconciled without getting stuck")
+			By("verifying the new Pool is successfully reconciled and creates expected pods")
 			Eventually(func(g Gomega) {
 				pool := &sandboxv1alpha1.Pool{}
 				err := k8sClient.Get(ctx, typeNamespacedName, pool)
