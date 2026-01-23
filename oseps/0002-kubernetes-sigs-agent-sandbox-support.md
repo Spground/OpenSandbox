@@ -1,7 +1,7 @@
 ---
 title: kubernetes-sigs/agent-sandbox Support
 authors:
-  - "贾岛"
+  - "@jwx0925"
 creation-date: 2026-01-23
 last-updated: 2026-01-23
 status: draft
