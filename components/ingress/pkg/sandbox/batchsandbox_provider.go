@@ -103,3 +103,5 @@ func (p *BatchSandboxProvider) GetEndpoint(name string) (string, error) {
 	// Return the first available endpoint
 	return endpoints[0], nil
 }
+
+var _ Provider = (*BatchSandboxProvider)(nil)

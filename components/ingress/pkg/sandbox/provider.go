@@ -19,9 +19,11 @@ import (
 	"errors"
 )
 
+type ProviderType string
+
 const (
-	// Provider type constants
-	ProviderTypeBatchSandbox = "batchsandbox"
+	ProviderTypeBatchSandbox ProviderType = "batchsandbox"
+	ProviderTypeAgentSandbox ProviderType = "agent-sandbox"
 )
 
 // Standard errors for Provider operations
@@ -52,5 +54,5 @@ type Provider interface {
 
 // ProviderFactory creates a Provider instance based on the provider type
 type ProviderFactory interface {
-	CreateProvider(providerType string) (Provider, error)
+	CreateProvider(providerType ProviderType) (Provider, error)
 }
