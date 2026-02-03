@@ -27,7 +27,6 @@ import os
 import re
 from pathlib import Path
 from typing import Any, Literal, Optional
-from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, ValidationError, model_validator
 

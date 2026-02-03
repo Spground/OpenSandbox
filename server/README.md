@@ -117,15 +117,14 @@ cp example.batchsandbox-template.yaml ~/batchsandbox-template.yaml
    [ingress]
    mode = "direct"  # docker runtime only supports direct
    # gateway.address = "*.example.com"         # host only (domain or IP[:port]); scheme is not allowed
-   # gateway.route.mode = "wildcard"            # wildcard | header | uri
+   # gateway.route.mode = "wildcard"            # wildcard | uri (header not yet supported)
    ```
    - `mode=direct`: default; required when `runtime.type=docker` (client ↔ sandbox direct reachability, no L7 gateway).
    - `mode=gateway`: configure external ingress.
      - `gateway.address`: wildcard domain required when `gateway.route.mode=wildcard`; otherwise must be domain, IP, or IP:port. Do not include scheme; clients decide http/https.
-     - `gateway.route.mode`: `wildcard` (host-based wildcard), `header` (header-based), `uri` (path-prefix).
+    - `gateway.route.mode`: `wildcard` (host-based wildcard), `uri` (path-prefix). `header` is not yet supported.
      - Response format examples:
        - `wildcard`: `<sandbox-id>-<port>.example.com/path/to/request`
-       - `header`: `10.0.0.1:8000/path/to/request` with header `OPEN-SANDBOX-INGRESS: <sandbox-id>-<port>`
        - `uri`: `10.0.0.1:8000/<sandbox-id>/<port>/path/to/request`
 
 ### (Optional) Egress sidecar for `networkPolicy`
