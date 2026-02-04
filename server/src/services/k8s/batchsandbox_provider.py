@@ -32,7 +32,6 @@ from kubernetes.client import (
 from src.api.schema import ImageSpec
 from src.config import IngressConfig, INGRESS_MODE_GATEWAY
 from src.services.helpers import format_ingress_endpoint
-from src.services.constants import SANDBOX_ID_LABEL
 from src.services.k8s.batchsandbox_template import BatchSandboxTemplateManager
 from src.services.k8s.client import K8sClient
 from src.services.k8s.workload_provider import WorkloadProvider
@@ -110,14 +109,13 @@ class BatchSandboxProvider(WorkloadProvider):
         Returns:
             Dict with 'name' and 'uid' of created BatchSandbox
         """
-        batchsandbox_name = f"sandbox-{sandbox_id}"
         extensions = extensions or {}
         
         # If poolRef is provided and not empty, create workload from pool
         if extensions.get("poolRef"):
             # When using pool, only entrypoint and env can be customized
             return self._create_workload_from_pool(
-                batchsandbox_name=batchsandbox_name,
+                batchsandbox_name=sandbox_id,
                 namespace=namespace,
                 labels=labels,
                 pool_ref=extensions["poolRef"],
@@ -154,7 +152,7 @@ class BatchSandboxProvider(WorkloadProvider):
             "apiVersion": f"{self.group}/{self.version}",
             "kind": "BatchSandbox",
             "metadata": {
-                "name": batchsandbox_name,
+                "name": sandbox_id,
                 "namespace": namespace,
                 "labels": labels,
             },
@@ -510,30 +508,39 @@ class BatchSandboxProvider(WorkloadProvider):
     
     def get_workload(self, sandbox_id: str, namespace: str) -> Optional[Dict[str, Any]]:
         """Get BatchSandbox by sandbox ID."""
-        label_selector = f"{SANDBOX_ID_LABEL}={sandbox_id}"
-        
         try:
-            batchsandbox_list = self.custom_api.list_namespaced_custom_object(
+            return self.custom_api.get_namespaced_custom_object(
                 group=self.group,
                 version=self.version,
                 namespace=namespace,
                 plural=self.plural,
-                label_selector=label_selector,
+                name=sandbox_id,
             )
-            
-            if batchsandbox_list.get("items"):
-                return batchsandbox_list["items"][0]
-            return None
         except ApiException as e:
-            # Handle 404 when CRD doesn't exist or no resources found
-            if e.status == 404:
-                return None
-            # Re-raise other API exceptions
-            raise
-        except Exception as e:
-            # Log unexpected errors and re-raise
-            logger.error(f"Unexpected error getting BatchSandbox for {sandbox_id}: {e}")
-            raise
+            if e.status != 404:
+                logger.error(f"Unexpected error getting BatchSandbox for {sandbox_id}: {e}")
+                raise
+
+        # Fallback for pre-upgrade sandboxes that used "sandbox-<id>" naming
+        legacy_name = self.legacy_resource_name(sandbox_id)
+        if legacy_name != sandbox_id:
+            try:
+                return self.custom_api.get_namespaced_custom_object(
+                    group=self.group,
+                    version=self.version,
+                    namespace=namespace,
+                    plural=self.plural,
+                    name=legacy_name,
+                )
+            except ApiException as e:
+                if e.status == 404:
+                    return None
+                raise
+            except Exception as e:
+                logger.error(f"Unexpected error getting BatchSandbox for {sandbox_id}: {e}")
+                raise
+
+        return None
     
     def delete_workload(self, sandbox_id: str, namespace: str) -> None:
         """Delete BatchSandbox workload."""
