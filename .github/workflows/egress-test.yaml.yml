@@ -32,3 +32,15 @@ jobs:
         run: |
           cd components/egress
           go test ./...
+
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run smoke test
+        run: |
+          cd components/egress
+          chmod +x tests/smoke.sh
+          ./tests/smoke.sh
