@@ -35,6 +35,8 @@ func TestApplyStatic_BuildsRuleset_DefaultDeny(t *testing.T) {
 	expectContains(t, rendered, "add chain inet opensandbox egress { type filter hook output priority 0; policy drop; }")
 	expectContains(t, rendered, "add rule inet opensandbox egress ct state established,related accept")
 	expectContains(t, rendered, "add rule inet opensandbox egress meta mark 0x1 accept")
+	expectContains(t, rendered, "add rule inet opensandbox egress tcp dport 853 drop")
+	expectContains(t, rendered, "add rule inet opensandbox egress udp dport 853 drop")
 	expectContains(t, rendered, "add element inet opensandbox allow_v4 { 1.1.1.1, 2.2.0.0/16 }")
 	expectContains(t, rendered, "add element inet opensandbox deny_v6 { 2001:db8::/32 }")
 	expectContains(t, rendered, "add rule inet opensandbox egress counter drop")
@@ -60,6 +62,7 @@ func TestApplyStatic_DefaultAllowUsesAcceptPolicy(t *testing.T) {
 	}
 
 	expectContains(t, rendered, "policy accept;")
+	expectContains(t, rendered, "add rule inet opensandbox egress tcp dport 853 drop")
 	if strings.Contains(rendered, "counter drop") {
 		t.Fatalf("did not expect drop counter when defaultAction is allow:\n%s", rendered)
 	}
@@ -95,4 +98,28 @@ func TestApplyStatic_RetryWhenTableMissing(t *testing.T) {
 	if len(scripts) < 2 || strings.Contains(scripts[1], "delete table inet opensandbox") {
 		t.Fatalf("expected second attempt to drop delete-table line; got %q", scripts[1])
 	}
+}
+
+func TestApplyStatic_DoHBlocklist(t *testing.T) {
+	var rendered string
+	opts := Options{
+		BlockDoT:       true,
+		BlockDoH443:    true,
+		DoHBlocklistV4: []string{"9.9.9.9"},
+		DoHBlocklistV6: []string{"2001:db8::/32"},
+	}
+	m := NewManagerWithRunnerAndOptions(func(_ context.Context, script string) ([]byte, error) {
+		rendered = script
+		return nil, nil
+	}, opts)
+
+	p, _ := policy.ParsePolicy(`{"defaultAction":"allow","egress":[]}`)
+	if err := m.ApplyStatic(context.Background(), p); err != nil {
+		t.Fatalf("ApplyStatic returned error: %v", err)
+	}
+
+	expectContains(t, rendered, "add set inet opensandbox doh_block_v4 { type ipv4_addr; flags interval; }")
+	expectContains(t, rendered, "add element inet opensandbox doh_block_v4 { 9.9.9.9 }")
+	expectContains(t, rendered, "add rule inet opensandbox egress ip daddr @doh_block_v4 tcp dport 443 drop")
+	expectContains(t, rendered, "add rule inet opensandbox egress ip6 daddr @doh_block_v6 tcp dport 443 drop")
 }

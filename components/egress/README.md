@@ -43,6 +43,10 @@ The egress control is implemented as a **Sidecar** that shares the network names
 - Optional bootstrap at start via env:
   - `OPENSANDBOX_EGRESS_RULES` (JSON, same shape as `/policy`) seeds initial policy.
   - If unset/empty/`{}`/`null`, sidecar starts with default deny-all until HTTP updates.
+- nftables 端口阻断配置：
+  - 默认阻断 DoT：tcp/udp 853。
+  - 可选阻断 DoH over 443：`OPENSANDBOX_EGRESS_BLOCK_DOH_443=true`。若未提供 blocklist，将严格丢弃全部 443。
+  - DoH 终端 blocklist（IP/CIDR，逗号分隔）：`OPENSANDBOX_EGRESS_DOH_BLOCKLIST="9.9.9.9,1.1.1.1/32,2001:db8::/32"`。
 
 ### Runtime HTTP API
 
@@ -133,4 +137,4 @@ go test ./...
 
 - **"iptables setup failed"**: Ensure the sidecar container has `--cap-add=NET_ADMIN`.
 - **DNS resolution fails for all domains**: Check if the upstream DNS (from `/etc/resolv.conf`) is reachable.
-- **Traffic not blocked**: Currently only DNS is filtered. Direct IP access is not yet blocked (Layer 2 pending).
+- **Traffic not blocked**: If nftables应用失败会回退为 DNS-only；检查日志、`nft list table inet opensandbox`、以及 `CAP_NET_ADMIN` 权限。

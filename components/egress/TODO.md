@@ -1,23 +1,22 @@
 # Egress Sidecar TODO (Linux MVP → Full OSEP-0001)
 
 ## Gaps vs OSEP-0001
-- No Layer 2 yet: no nftables full isolation, no DoH/DoT blocking, no IP/CIDR rules.
-- Policy surface: domain allow/deny with defaultAction is present; still missing IP/CIDR targets, `require_full_isolation`, and validation errors for bad actions/targets.
+- Layer 2 still partial: static IP/CIDR now pushed to nftables, but no DNS-learned IPs, no DoH/DoT blocking, no dynamic isolation.
+- Policy surface: IP/CIDR parsing/validation done; still missing `require_full_isolation`, richer validation messages, and dynamic IP learn + apply.
 - Observability missing: no enforcement mode/status exposure, no violation logs.
-- Capability probing missing: no CAP_NET_ADMIN/nftables detection; no hostNetwork rejection.
+- Capability probing missing: no CAP_NET_ADMIN/nftables detection; hostNetwork 已由 server 侧阻断。
 - Platform integration missing: server/SDK/spec not updated; sidecar not wired into server flow.
 - No IPv6; startup ordering not enforced (relies on container start order).
 
 ## Short-term priorities (suggested order)
 1) Capability probing & mode exposure  
    - Detect CAP_NET_ADMIN and nftables; set `dns-only` vs `dns+nftables`; surface in logs/status.  
-   - Fast-fail on hostNetwork.
 2) Layer 2 via nftables  
-   - Allow-set + default DROP; add DNS-learned IPs dynamically.  
-   - Static IP/CIDR rules; block DoH/DoT ports.
+   - Add DNS-learned IPs dynamically with TTL.  
+   - Block DoH/DoT ports (853 and optional 443 blocklist).
 3) Policy expansion  
-   - Add IP/CIDR targets and `require_full_isolation`.  
-   - Validation and clear errors for unsupported actions/targets.
+   - Add `require_full_isolation`.  
+   - Clearer validation errors (target kinds, mutually exclusive settings).
 4) Observability & logging  
    - Violation logs (domain/action/upstream IP); expose current enforcement mode.  
    - Optional lightweight health/status endpoint.
@@ -34,5 +33,6 @@
 ## Dev notes
 - Current behavior: default deny-all baseline even when no policy is provided; POST /policy empty resets to deny-all; env bootstrap defaults to deny-all.  
 - DNS proxy always runs; SO_MARK=0x1 bypass for proxy’s own upstream DNS; iptables only redirects port 53, no other DROP rules.  
-- Runtime deps: Linux, `CAP_NET_ADMIN`, `iptables` binary; upstream DNS must be reachable and recursive.
+- nftables: static IP/CIDR applied on start and policy update; retry without delete-table if table absent; failures fall back to DNS-only.  
+- Runtime deps: Linux, `CAP_NET_ADMIN`, `iptables`/`nft` binaries; upstream DNS must be reachable and recursive.
 

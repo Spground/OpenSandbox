@@ -17,14 +17,21 @@ package main
 import (
 	"context"
 	"log"
+	"net/netip"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/alibaba/opensandbox/egress/pkg/dnsproxy"
 	"github.com/alibaba/opensandbox/egress/pkg/iptables"
 	"github.com/alibaba/opensandbox/egress/pkg/nftables"
 	"github.com/alibaba/opensandbox/egress/pkg/policy"
+)
+
+const (
+	envBlockDoH443  = "OPENSANDBOX_EGRESS_BLOCK_DOH_443"
+	envDoHBlocklist = "OPENSANDBOX_EGRESS_DOH_BLOCKLIST" // comma-separated IP/CIDR
 )
 
 // Linux MVP: DNS proxy + iptables REDIRECT. No nftables/full isolation yet.
@@ -41,7 +48,8 @@ func main() {
 		log.Printf("loaded initial egress policy from %s", policy.EgressRulesEnv)
 	}
 
-	nftMgr := nftables.NewManager()
+	nftOpts := parseNftOptions()
+	nftMgr := nftables.NewManagerWithOptions(nftOpts)
 
 	proxy, err := dnsproxy.New(initialPolicy, "")
 	if err != nil {
@@ -80,4 +88,47 @@ func main() {
 	<-ctx.Done()
 	log.Println("received shutdown signal; exiting")
 	_ = os.Stderr.Sync()
+}
+
+func parseNftOptions() nftables.Options {
+	opts := nftables.Options{BlockDoT: true}
+	if isTruthy(os.Getenv(envBlockDoH443)) {
+		opts.BlockDoH443 = true
+	}
+	if raw := os.Getenv(envDoHBlocklist); strings.TrimSpace(raw) != "" {
+		parts := strings.Split(raw, ",")
+		for _, p := range parts {
+			target := strings.TrimSpace(p)
+			if target == "" {
+				continue
+			}
+			if addr, err := netip.ParseAddr(target); err == nil {
+				if addr.Is4() {
+					opts.DoHBlocklistV4 = append(opts.DoHBlocklistV4, target)
+				} else if addr.Is6() {
+					opts.DoHBlocklistV6 = append(opts.DoHBlocklistV6, target)
+				}
+				continue
+			}
+			if prefix, err := netip.ParsePrefix(target); err == nil {
+				if prefix.Addr().Is4() {
+					opts.DoHBlocklistV4 = append(opts.DoHBlocklistV4, target)
+				} else if prefix.Addr().Is6() {
+					opts.DoHBlocklistV6 = append(opts.DoHBlocklistV6, target)
+				}
+				continue
+			}
+			log.Printf("ignoring invalid DoH blocklist entry: %s", target)
+		}
+	}
+	return opts
+}
+
+func isTruthy(v string) bool {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "y", "on":
+		return true
+	default:
+		return false
+	}
 }
