@@ -23,6 +23,7 @@ import (
 
 	"github.com/alibaba/opensandbox/egress/pkg/dnsproxy"
 	"github.com/alibaba/opensandbox/egress/pkg/iptables"
+	"github.com/alibaba/opensandbox/egress/pkg/nftables"
 	"github.com/alibaba/opensandbox/egress/pkg/policy"
 )
 
@@ -40,6 +41,8 @@ func main() {
 		log.Printf("loaded initial egress policy from %s", policy.EgressRulesEnv)
 	}
 
+	nftMgr := nftables.NewManager()
+
 	proxy, err := dnsproxy.New(initialPolicy, "")
 	if err != nil {
 		log.Fatalf("failed to init dns proxy: %v", err)
@@ -54,12 +57,18 @@ func main() {
 	}
 	log.Printf("iptables redirect configured (OUTPUT 53 -> 15353) with SO_MARK bypass for proxy upstream traffic")
 
+	if err := nftMgr.ApplyStatic(ctx, initialPolicy); err != nil {
+		log.Printf("nftables static apply failed; continuing with dns-only mode: %v", err)
+	} else {
+		log.Printf("nftables static policy applied (table inet opensandbox)")
+	}
+
 	httpAddr := os.Getenv(policy.EgressServerAddrEnv)
 	if httpAddr == "" {
 		httpAddr = policy.DefaultEgressServerAddr
 	}
 	token := os.Getenv(policy.EgressAuthTokenEnv)
-	if err := startPolicyServer(ctx, proxy, httpAddr, token); err != nil {
+	if err := startPolicyServer(ctx, proxy, nftMgr, httpAddr, token); err != nil {
 		log.Fatalf("failed to start policy server: %v", err)
 	}
 	if token == "" {
