@@ -20,13 +20,13 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/alibaba/opensandbox/egress/pkg/constants"
 	"github.com/alibaba/opensandbox/egress/pkg/policy"
 )
 
 const (
 	tableName     = "opensandbox"
 	chainName     = "egress"
-	bypassMark    = "0x1"
 	allowV4Set    = "allow_v4"
 	allowV6Set    = "allow_v6"
 	denyV4Set     = "deny_v4"
@@ -128,7 +128,7 @@ func buildRuleset(p *policy.NetworkPolicy, opts Options) string {
 	}
 	fmt.Fprintf(&b, "add chain inet %s %s { type filter hook output priority 0; policy %s; }\n", tableName, chainName, chainPolicy)
 	fmt.Fprintf(&b, "add rule inet %s %s ct state established,related accept\n", tableName, chainName)
-	fmt.Fprintf(&b, "add rule inet %s %s meta mark %s accept\n", tableName, chainName, bypassMark)
+	fmt.Fprintf(&b, "add rule inet %s %s meta mark %s accept\n", tableName, chainName, constants.MarkHex)
 	if opts.BlockDoT {
 		fmt.Fprintf(&b, "add rule inet %s %s tcp dport 853 drop\n", tableName, chainName)
 		fmt.Fprintf(&b, "add rule inet %s %s udp dport 853 drop\n", tableName, chainName)

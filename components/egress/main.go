@@ -23,15 +23,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/alibaba/opensandbox/egress/pkg/constants"
 	"github.com/alibaba/opensandbox/egress/pkg/dnsproxy"
 	"github.com/alibaba/opensandbox/egress/pkg/iptables"
 	"github.com/alibaba/opensandbox/egress/pkg/nftables"
-	"github.com/alibaba/opensandbox/egress/pkg/policy"
-)
-
-const (
-	envBlockDoH443  = "OPENSANDBOX_EGRESS_BLOCK_DOH_443"
-	envDoHBlocklist = "OPENSANDBOX_EGRESS_DOH_BLOCKLIST" // comma-separated IP/CIDR
 )
 
 // Linux MVP: DNS proxy + iptables REDIRECT. No nftables/full isolation yet.
@@ -40,16 +35,22 @@ func main() {
 	defer cancel()
 
 	// Optional bootstrap via env; still allow runtime HTTP updates.
-	initialPolicy, err := dnsproxy.LoadPolicyFromEnvVar(policy.EgressRulesEnv)
+	initialPolicy, err := dnsproxy.LoadPolicyFromEnvVar(constants.EnvEgressRules)
 	if err != nil {
-		log.Fatalf("failed to parse %s: %v", policy.EgressRulesEnv, err)
+		log.Fatalf("failed to parse %s: %v", constants.EnvEgressRules, err)
 	}
 	if initialPolicy != nil {
-		log.Printf("loaded initial egress policy from %s", policy.EgressRulesEnv)
+		log.Printf("loaded initial egress policy from %s", constants.EnvEgressRules)
 	}
 
-	nftOpts := parseNftOptions()
-	nftMgr := nftables.NewManagerWithOptions(nftOpts)
+	requestedMode := parseMode()
+	enforcementMode := requestedMode
+
+	var nftMgr nftApplier
+	if requestedMode == constants.PolicyDnsNft {
+		nftOpts := parseNftOptions()
+		nftMgr = nftables.NewManagerWithOptions(nftOpts)
+	}
 
 	proxy, err := dnsproxy.New(initialPolicy, "")
 	if err != nil {
@@ -65,25 +66,25 @@ func main() {
 	}
 	log.Printf("iptables redirect configured (OUTPUT 53 -> 15353) with SO_MARK bypass for proxy upstream traffic")
 
-	if err := nftMgr.ApplyStatic(ctx, initialPolicy); err != nil {
-		log.Printf("nftables static apply failed; continuing with dns-only mode: %v", err)
-	} else {
-		log.Printf("nftables static policy applied (table inet opensandbox)")
+	if nftMgr != nil {
+		if err := nftMgr.ApplyStatic(ctx, initialPolicy); err != nil {
+			log.Printf("nftables static apply failed; continuing with dns-only mode: %v", err)
+			enforcementMode = constants.PolicyDnsNft
+			nftMgr = nil
+		} else {
+			log.Printf("nftables static policy applied (table inet opensandbox)")
+		}
 	}
 
-	httpAddr := os.Getenv(policy.EgressServerAddrEnv)
+	httpAddr := os.Getenv(constants.EnvEgressHTTPAddr)
 	if httpAddr == "" {
-		httpAddr = policy.DefaultEgressServerAddr
+		httpAddr = constants.DefaultEgressServerAddr
 	}
-	token := os.Getenv(policy.EgressAuthTokenEnv)
-	if err := startPolicyServer(ctx, proxy, nftMgr, httpAddr, token); err != nil {
+	token := os.Getenv(constants.EnvEgressToken)
+	if err := startPolicyServer(ctx, proxy, nftMgr, enforcementMode, httpAddr, token); err != nil {
 		log.Fatalf("failed to start policy server: %v", err)
 	}
-	if token == "" {
-		log.Printf("policy server listening on %s (POST /policy); no token configured (%s)", httpAddr, policy.EgressAuthTokenEnv)
-	} else {
-		log.Printf("policy server listening on %s (POST /policy) with token auth", httpAddr)
-	}
+	log.Printf("policy server listening on %s (POST /policy)", httpAddr)
 
 	<-ctx.Done()
 	log.Println("received shutdown signal; exiting")
@@ -92,10 +93,10 @@ func main() {
 
 func parseNftOptions() nftables.Options {
 	opts := nftables.Options{BlockDoT: true}
-	if isTruthy(os.Getenv(envBlockDoH443)) {
+	if isTruthy(os.Getenv(constants.EnvBlockDoH443)) {
 		opts.BlockDoH443 = true
 	}
-	if raw := os.Getenv(envDoHBlocklist); strings.TrimSpace(raw) != "" {
+	if raw := os.Getenv(constants.EnvDoHBlocklist); strings.TrimSpace(raw) != "" {
 		parts := strings.Split(raw, ",")
 		for _, p := range parts {
 			target := strings.TrimSpace(p)
@@ -130,5 +131,18 @@ func isTruthy(v string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+func parseMode() string {
+	mode := strings.ToLower(strings.TrimSpace(os.Getenv(constants.EnvEgressMode)))
+	switch mode {
+	case "", constants.PolicyDnsNft:
+		return constants.PolicyDnsNft
+	case constants.PolicyDnsOnly:
+		return constants.PolicyDnsOnly
+	default:
+		log.Printf("invalid %s=%s, falling back to dns+nft", constants.EnvEgressMode, mode)
+		return constants.PolicyDnsNft
 	}
 }

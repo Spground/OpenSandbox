@@ -26,12 +26,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/alibaba/opensandbox/egress/pkg/constants"
 	"github.com/alibaba/opensandbox/egress/pkg/policy"
 )
 
 type policyUpdater interface {
 	CurrentPolicy() *policy.NetworkPolicy
 	UpdatePolicy(*policy.NetworkPolicy)
+}
+
+// enforcementReporter reports the current enforcement mode (dns | dns+nft).
+type enforcementReporter interface {
+	EnforcementMode() string
 }
 
 // nftApplier is a narrow interface for applying static IP/CIDR rules.
@@ -43,9 +49,9 @@ type nftApplier interface {
 // Supported endpoints:
 //   - GET  /policy : returns the currently enforced policy.
 //   - POST /policy : replace the policy; empty body resets to default deny-all.
-func startPolicyServer(ctx context.Context, proxy policyUpdater, nft nftApplier, addr string, token string) error {
+func startPolicyServer(ctx context.Context, proxy policyUpdater, nft nftApplier, enforcementMode string, addr string, token string) error {
 	mux := http.NewServeMux()
-	handler := &policyServer{proxy: proxy, nft: nft, token: token}
+	handler := &policyServer{proxy: proxy, nft: nft, token: token, enforcementMode: enforcementMode}
 	mux.HandleFunc("/policy", handler.handlePolicy)
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -87,10 +93,11 @@ func startPolicyServer(ctx context.Context, proxy policyUpdater, nft nftApplier,
 }
 
 type policyServer struct {
-	proxy  policyUpdater
-	nft    nftApplier
-	server *http.Server
-	token  string
+	proxy           policyUpdater
+	nft             nftApplier
+	server          *http.Server
+	token           string
+	enforcementMode string
 }
 
 func (s *policyServer) handlePolicy(w http.ResponseWriter, r *http.Request) {
@@ -113,8 +120,9 @@ func (s *policyServer) handleGet(w http.ResponseWriter) {
 	current := s.proxy.CurrentPolicy()
 	mode := modeFromPolicy(current)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"mode":   mode,
-		"policy": current,
+		"mode":            mode,
+		"enforcementMode": s.enforcementMode,
+		"policy":          current,
 	})
 }
 
@@ -150,8 +158,9 @@ func (s *policyServer) handlePost(w http.ResponseWriter, r *http.Request) {
 	}
 	s.proxy.UpdatePolicy(pol)
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "ok",
-		"mode":   modeFromPolicy(pol),
+		"status":          "ok",
+		"mode":            modeFromPolicy(pol),
+		"enforcementMode": s.enforcementMode,
 	})
 }
 
@@ -159,7 +168,7 @@ func (s *policyServer) authorize(r *http.Request) bool {
 	if s.token == "" {
 		return true
 	}
-	provided := r.Header.Get(policy.EgressAuthTokenHeader)
+	provided := r.Header.Get(constants.EgressAuthTokenHeader)
 	if provided == "" {
 		return false
 	}
