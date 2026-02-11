@@ -1,0 +1,128 @@
+name: Publish Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      component:
+        description: 'Component to release'
+        required: true
+        type: choice
+        options:
+          - opensandbox-controller
+        default: 'opensandbox-controller'
+      chart_version:
+        description: 'Chart version to release'
+        required: true
+        default: '0.1.0'
+      app_version:
+        description: 'App version'
+        required: true
+        default: '0.0.1'
+  push:
+    tags:
+      - 'helm/**'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'latest'
+
+      - name: Parse tag and set variables
+        id: parse_tag
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/helm/* ]]; then
+            TAG_PATH="${{ github.ref }}"
+            TAG_PATH="${TAG_PATH#refs/tags/}"
+            
+            COMPONENT=$(echo "$TAG_PATH" | cut -d'/' -f2)
+            VERSION=$(echo "$TAG_PATH" | cut -d'/' -f3)
+            
+            echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+            echo "chart_version=$VERSION" >> $GITHUB_OUTPUT
+            echo "app_version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "component=${{ inputs.component }}" >> $GITHUB_OUTPUT
+            echo "chart_version=${{ inputs.chart_version }}" >> $GITHUB_OUTPUT
+            echo "app_version=${{ inputs.app_version }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set chart path
+        id: chart_path
+        run: |
+          COMPONENT="${{ steps.parse_tag.outputs.component }}"
+          
+          if [ "$COMPONENT" == "opensandbox-controller" ]; then
+            CHART_PATH="kubernetes/charts/opensandbox-controller"
+          else
+            echo "Error: Unknown component: $COMPONENT"
+            exit 1
+          fi
+          
+          echo "path=$CHART_PATH" >> $GITHUB_OUTPUT
+
+      - name: Update Chart.yaml with versions
+        run: |
+          CHART_VERSION="${{ steps.parse_tag.outputs.chart_version }}"
+          APP_VERSION="${{ steps.parse_tag.outputs.app_version }}"
+          CHART_PATH="${{ steps.chart_path.outputs.path }}"
+          
+          sed -i "s/^version:.*/version: $CHART_VERSION/" $CHART_PATH/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$APP_VERSION\"/" $CHART_PATH/Chart.yaml
+          
+          echo "Updated Chart.yaml:"
+          cat $CHART_PATH/Chart.yaml
+
+      - name: Lint Helm chart
+        run: |
+          CHART_PATH="${{ steps.chart_path.outputs.path }}"
+          helm lint $CHART_PATH
+
+      - name: Package Helm chart
+        run: |
+          CHART_PATH="${{ steps.chart_path.outputs.path }}"
+          helm package $CHART_PATH
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: helm/${{ steps.parse_tag.outputs.component }}/${{ steps.parse_tag.outputs.chart_version }}
+          name: Helm Chart ${{ steps.parse_tag.outputs.component }} v${{ steps.parse_tag.outputs.chart_version }}
+          body: |
+            ## ${{ steps.parse_tag.outputs.component }} Helm Chart v${{ steps.parse_tag.outputs.chart_version }}
+            
+            **App Version:** ${{ steps.parse_tag.outputs.app_version }}
+            
+            ### Installation
+            
+            直接从 Release 安装:
+            
+            ```bash
+            helm install ${{ steps.parse_tag.outputs.component }} https://github.com/${{ github.repository }}/releases/download/helm/${{ steps.parse_tag.outputs.component }}/${{ steps.parse_tag.outputs.chart_version }}/${{ steps.parse_tag.outputs.component }}-${{ steps.parse_tag.outputs.chart_version }}.tgz --namespace opensandbox-system --create-namespace
+            ```
+            
+            ### What's Changed
+            
+            - Chart version: ${{ steps.parse_tag.outputs.chart_version }}
+            - App version: ${{ steps.parse_tag.outputs.app_version }}
+          files: |
+            ${{ steps.parse_tag.outputs.component }}-*.tgz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
