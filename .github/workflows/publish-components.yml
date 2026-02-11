@@ -15,6 +15,8 @@ on:
           - code-interpreter
           - ingress
           - egress
+          - controller
+          - task-executor
         default: 'execd'
       image_tag:
         description: 'Docker image tag'
@@ -26,6 +28,8 @@ on:
       - 'docker/code-interpreter/**'
       - 'docker/ingress/**'
       - 'docker/egress/**'
+      - 'k8s/controller/**'
+      - 'k8s/task-executor/**'
 
 jobs:
   publish:
@@ -65,6 +69,15 @@ jobs:
 
             echo "component=$COMPONENT" >> $GITHUB_OUTPUT
             echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/tags/k8s/* ]]; then
+            TAG_PATH="${{ github.ref }}"
+            TAG_PATH="${TAG_PATH#refs/tags/}"
+
+            COMPONENT=$(echo "$TAG_PATH" | cut -d'/' -f2)
+            IMAGE_TAG=$(echo "$TAG_PATH" | cut -d'/' -f3)
+
+            echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+            echo "image_tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
           else
             echo "component=${{ inputs.component }}" >> $GITHUB_OUTPUT
             echo "image_tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
@@ -88,6 +101,10 @@ jobs:
             cd components/ingress
           elif [ "$COMPONENT" == "egress" ]; then
             cd components/egress
+          elif [ "$COMPONENT" == "controller" ]; then
+            cd kubernetes
+          elif [ "$COMPONENT" == "task-executor" ]; then
+            cd kubernetes
           else
             cd sandboxes/$COMPONENT
           fi
