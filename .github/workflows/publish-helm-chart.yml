@@ -110,10 +110,25 @@ jobs:
             
             ### Installation
             
-            直接从 Release 安装:
+            直接从 GitHub Release 安装:
             
             ```bash
-            helm install ${{ steps.parse_tag.outputs.component }} https://github.com/${{ github.repository }}/releases/download/helm/${{ steps.parse_tag.outputs.component }}/${{ steps.parse_tag.outputs.chart_version }}/${{ steps.parse_tag.outputs.component }}-${{ steps.parse_tag.outputs.chart_version }}.tgz --namespace opensandbox-system --create-namespace
+            helm install opensandbox \
+              https://github.com/${{ github.repository }}/releases/download/helm/${{ steps.parse_tag.outputs.component }}/${{ steps.parse_tag.outputs.chart_version }}/${{ steps.parse_tag.outputs.component }}-${{ steps.parse_tag.outputs.chart_version }}.tgz \
+              --namespace opensandbox-system \
+              --create-namespace
+            ```
+            
+            或者先下载后安装:
+            
+            ```bash
+            # 下载
+            wget https://github.com/${{ github.repository }}/releases/download/helm/${{ steps.parse_tag.outputs.component }}/${{ steps.parse_tag.outputs.chart_version }}/${{ steps.parse_tag.outputs.component }}-${{ steps.parse_tag.outputs.chart_version }}.tgz
+            
+            # 安装
+            helm install opensandbox ./${{ steps.parse_tag.outputs.component }}-${{ steps.parse_tag.outputs.chart_version }}.tgz \
+              --namespace opensandbox-system \
+              --create-namespace
             ```
             
             ### What's Changed
