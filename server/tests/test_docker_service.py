@@ -934,7 +934,7 @@ class TestDockerVolumeValidation:
         # Simulate: realpath resolves a symlink that escapes the mountpoint.
         # datasets -> / inside the volume, so realpath(…/_data/datasets) = /
         with patch("src.services.docker.os.path.realpath") as mock_realpath:
-            mock_realpath.side_effect = lambda p: (
+            mock_realpath.side_effect = lambda p, **kwargs: (
                 "/" if p.endswith("datasets") else p
             )
             with pytest.raises(HTTPException) as exc_info:

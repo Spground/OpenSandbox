@@ -667,9 +667,10 @@ class DockerSandboxService(SandboxService):
         request: CreateSandboxRequest,
         created_at: datetime,
         expires_at: datetime,
+        pvc_inspect_cache: Optional[dict[str, dict]] = None,
     ) -> None:
         try:
-            self._provision_sandbox(sandbox_id, request, created_at, expires_at)
+            self._provision_sandbox(sandbox_id, request, created_at, expires_at, pvc_inspect_cache)
         except HTTPException as exc:
             message = exc.detail.get("message") if isinstance(exc.detail, dict) else str(exc)
             self._mark_pending_failed(sandbox_id, message or "Sandbox provisioning failed.")
@@ -1120,16 +1121,19 @@ class DockerSandboxService(SandboxService):
 
             # 2. Symlink-aware check (best-effort).
             #    Docker volume Mountpoint dirs are typically root-owned and not
-            #    readable by the server process.  When the path IS accessible,
-            #    resolve symlinks via realpath and re-validate.  When it is NOT
-            #    accessible (OSError / realpath == lexical path because the
-            #    kernel could not traverse), we fall back to the lexical check
-            #    above.  This mitigates symlink-escape attacks (e.g., a
-            #    malicious symlink datasets -> /) when the server has sufficient
-            #    privileges.
+            #    readable by the server process.  Using strict=True so that
+            #    realpath raises OSError when it cannot traverse a directory
+            #    instead of silently returning the unresolved lexical path
+            #    (which would make this check a no-op).  When the path IS
+            #    accessible, this detects symlink-escape attacks (e.g., a
+            #    malicious symlink datasets -> /).
             try:
-                canonical_mountpoint = os.path.realpath(mountpoint)
-                canonical_resolved = os.path.realpath(resolved_path)
+                canonical_mountpoint = os.path.realpath(
+                    mountpoint, strict=True
+                )
+                canonical_resolved = os.path.realpath(
+                    resolved_path, strict=True
+                )
                 # os.path.realpath returns OS-native separators, so use
                 # os.sep here (unlike the lexical check above which operates
                 # on POSIX-normalised Docker Mountpoint strings).
@@ -1154,7 +1158,8 @@ class DockerSandboxService(SandboxService):
                     )
             except OSError:
                 # Cannot access volume paths (expected for non-root server).
-                # Lexical validation above is still enforced.
+                # Lexical validation above is still enforced; the symlink
+                # check is skipped because we cannot resolve the real paths.
                 pass
 
             # NOTE: We intentionally do NOT check os.path.exists(resolved_path)
