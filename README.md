@@ -3,12 +3,26 @@
 
   <h1>OpenSandbox</h1>
 
-[![GitHub stars](https://img.shields.io/github/stars/alibaba/OpenSandbox.svg?style=social)](https://github.com/alibaba/OpenSandbox)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alibaba/OpenSandbox)
-[![license](https://img.shields.io/github/license/alibaba/OpenSandbox.svg)](https://www.apache.org/licenses/LICENSE-2.0.html)
-[![PyPI version](https://badge.fury.io/py/opensandbox.svg)](https://badge.fury.io/py/opensandbox)
-[![npm version](https://badge.fury.io/js/@alibaba-group%2Fopensandbox.svg)](https://badge.fury.io/js/@alibaba-group%2Fopensandbox)
-[![E2E Status](https://github.com/alibaba/OpenSandbox/actions/workflows/real-e2e.yml/badge.svg?branch=main)](https://github.com/alibaba/OpenSandbox/actions)
+<p align="center">
+  <a href="https://github.com/alibaba/OpenSandbox">
+    <img src="https://img.shields.io/github/stars/alibaba/OpenSandbox.svg?style=social" alt="GitHub stars" />
+  </a>
+  <a href="https://deepwiki.com/alibaba/OpenSandbox">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" />
+  </a>
+  <a href="https://www.apache.org/licenses/LICENSE-2.0.html">
+    <img src="https://img.shields.io/github/license/alibaba/OpenSandbox.svg" alt="license" />
+  </a>
+  <a href="https://badge.fury.io/py/opensandbox">
+    <img src="https://badge.fury.io/py/opensandbox.svg" alt="PyPI version" />
+  </a>
+  <a href="https://badge.fury.io/js/@alibaba-group%2Fopensandbox">
+    <img src="https://badge.fury.io/js/@alibaba-group%2Fopensandbox.svg" alt="npm version" />
+  </a>
+  <a href="https://github.com/alibaba/OpenSandbox/actions">
+    <img src="https://github.com/alibaba/OpenSandbox/actions/workflows/real-e2e.yml/badge.svg?branch=main" alt="E2E Status" />
+  </a>
+</p>
 
   <hr />
 </div>
@@ -56,7 +70,8 @@ opensandbox-server init-config ~/.sandbox.toml --example docker
 ```bash
 opensandbox-server
 
-# opensandbox-server -h # Show help
+# Show help
+opensandbox-server -h
 ```
 
 #### 3. Create a Code Interpreter and Execute Commands
@@ -143,6 +158,7 @@ OpenSandbox provides rich examples demonstrating sandbox usage in different scen
 - **[iflow-cli](examples/iflow-cli/README.md)** - Run iFLow CLI inside OpenSandbox.
 - **[langgraph](examples/langgraph/README.md)** - LangGraph state-machine workflow that creates/runs a sandbox job with fallback retry.
 - **[google-adk](examples/google-adk/README.md)** - Google ADK agent using OpenSandbox tools to write/read files and run commands.
+- **[openclaw](examples/openclaw/README.md)** - Launch an OpenClaw Gateway inside a sandbox.
 
 #### 🌐 Browser and Desktop Environments
 
@@ -212,3 +228,4 @@ This project is open source under the [Apache 2.0 License](LICENSE).
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=alibaba/OpenSandbox&type=date&legend=top-left)](https://www.star-history.com/#alibaba/OpenSandbox&type=date&legend=top-left)
+

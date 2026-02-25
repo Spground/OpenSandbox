@@ -20,11 +20,21 @@ ARG VERSION=dev
 ARG GIT_COMMIT=unknown
 ARG BUILD_TIME=unknown
 
-COPY go.mod go.sum ./
+COPY kubernetes ./kubernetes
+# Prepare local modules to satisfy replace directives.
+COPY components/internal/go.mod components/internal/go.sum ./components/internal/
+COPY components/ingress/go.mod components/ingress/go.sum ./components/ingress/
 
-RUN go mod download
+WORKDIR /build
 
-COPY . .
+RUN cd components/internal && go mod download
+RUN cd components/ingress && go mod download
+
+# Copy sources.
+COPY components/internal ./components/internal
+COPY components/ingress/. ./components/ingress
+
+WORKDIR /build/components/ingress
 
 RUN CGO_ENABLED=0 go build \
     -ldflags "-X 'github.com/alibaba/opensandbox/ingress/version.Version=${VERSION}' \

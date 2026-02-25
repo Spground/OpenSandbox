@@ -92,7 +92,7 @@ opensandbox-server init-config ~/.sandbox.toml --example k8s-zh
 
    [runtime]
    type = "docker"
-   execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.5"
+   execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.6"
 
    [docker]
    network_mode = "host"  # 容器共享宿主机网络，只能创建一个sandbox实例
@@ -108,7 +108,7 @@ opensandbox-server init-config ~/.sandbox.toml --example k8s-zh
 
    [runtime]
    type = "docker"
-   execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.5"
+   execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.6"
 
    [docker]
    network_mode = "bridge"  # 容器隔离网络
@@ -148,7 +148,7 @@ mode = "direct"  # Docker 运行时仅支持 direct（直连，无 L7 网关）
 ```toml
 [runtime]
 type = "docker"
-execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.5"
+execd_image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/execd:v1.0.6"
 
 [egress]
 image = "sandbox-registry.cn-zhangjiakou.cr.aliyuncs.com/opensandbox/egress:v1.0.0"
