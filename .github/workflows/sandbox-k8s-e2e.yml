@@ -18,11 +18,29 @@ env:
 
 jobs:
   e2e-k8s:
-    name: E2E Tests (K8s v${{ matrix.k8s-version }})
+    name: E2E Tests (K8s v${{ matrix.k8s-version }}, Kind ${{ matrix.kind-version }})
     strategy:
       fail-fast: false
       matrix:
-        k8s-version: ["1.20.0", "1.21.1", "1.22.4", "1.24.4", "1.26.4", "1.28.6", "1.30.4", "1.32.2", "1.34.2"]
+        include:
+          - k8s-version: "1.20.0"
+            kind-version: "v0.17.0" # to fix incompatibility
+          - k8s-version: "1.21.1"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.22.4"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.24.4"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.26.4"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.28.6"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.30.4"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.32.2"
+            kind-version: "v0.31.0"
+          - k8s-version: "1.34.2"
+            kind-version: "v0.31.0"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -36,4 +54,4 @@ jobs:
       - name: Run tests
         run: |
           cd kubernetes
-          make test-e2e KIND_K8S_VERSION=v${{ matrix.k8s-version }}
+          make test-e2e KIND_REINSTALL=true KIND_VERSION=${{ matrix.kind-version }} KIND_K8S_VERSION=v${{ matrix.k8s-version }}

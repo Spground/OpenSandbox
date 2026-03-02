@@ -125,13 +125,16 @@ KIND_CLUSTER ?= sandbox-k8s-test-e2e
 KIND_K8S_VERSION ?= v1.22.4
 GINKGO_ARGS ?=
 
+KIND_VERSION ?= v0.20.0
+KIND_REINSTALL ?= false
+
 .PHONY: install-kind
-install-kind: ## Install Kind using go install if not already installed
-	@if command -v kind >/dev/null 2>&1; then \
+install-kind: ## Install Kind using go install if not already installed. Set KIND_REINSTALL=true to force reinstall.
+	@if [ "$(KIND_REINSTALL)" != "true" ] && command -v kind >/dev/null 2>&1; then \
 		echo "Kind is already installed: $$(kind version)"; \
 	else \
-		echo "Installing Kind..."; \
-		go install sigs.k8s.io/kind@v0.20.0 && \
+		echo "Installing Kind $(KIND_VERSION)..."; \
+		go install sigs.k8s.io/kind@$(KIND_VERSION) && \
 		echo "Kind installed successfully: $$(kind version)"; \
 	fi
 
