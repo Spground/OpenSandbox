@@ -209,10 +209,9 @@ func (r *BatchSandboxReconciler) dispatchPauseResume(ctx context.Context, bs *sa
 			result, err := r.handleResume(ctx, bs)
 			return result, true, err
 		}
-		log.Info("Dispatch: ACK only", "generation", generation, "pauseObservedGeneration", pauseObservedGen)
-		if err := r.ackPauseGeneration(ctx, bs); err != nil {
-			return ctrl.Result{}, true, err
-		}
+		// No pause intent — skip the dedicated ACK API call. The normal flow's
+		// persistRuntimeView will update PauseObservedGeneration in its status patch.
+		log.Info("Dispatch: no pause intent, deferring ACK to status patch", "generation", generation, "pauseObservedGeneration", pauseObservedGen)
 		return ctrl.Result{}, false, nil
 	}
 
