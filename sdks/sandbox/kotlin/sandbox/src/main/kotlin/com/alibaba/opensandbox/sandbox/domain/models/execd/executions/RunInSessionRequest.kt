@@ -16,7 +16,7 @@
 
 package com.alibaba.opensandbox.sandbox.domain.models.execd.executions
 
-import kotlin.time.Duration
+import java.time.Duration
 
 /**
  * Request to run a command in an existing bash session.

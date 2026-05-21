@@ -196,7 +196,7 @@ internal class CommandsAdapter(
                 RunInSessionRequestApi(
                     command = request.command,
                     cwd = request.workingDirectory,
-                    timeout = request.timeout?.inWholeMilliseconds,
+                    timeout = request.timeout?.toMillis(),
                 )
             val runUrl =
                 execdBaseUrl

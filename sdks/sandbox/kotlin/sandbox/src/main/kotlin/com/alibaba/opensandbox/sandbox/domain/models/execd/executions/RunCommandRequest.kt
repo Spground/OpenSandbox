@@ -16,7 +16,7 @@
 
 package com.alibaba.opensandbox.sandbox.domain.models.execd.executions
 
-import kotlin.time.Duration
+import java.time.Duration
 
 /**
  * Parameters for command execution.

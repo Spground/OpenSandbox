@@ -21,7 +21,7 @@ import com.alibaba.opensandbox.sandbox.domain.models.execd.executions.CommandSta
 import com.alibaba.opensandbox.sandbox.domain.models.execd.executions.Execution
 import com.alibaba.opensandbox.sandbox.domain.models.execd.executions.RunCommandRequest
 import com.alibaba.opensandbox.sandbox.domain.models.execd.executions.RunInSessionRequest
-import kotlin.time.Duration
+import java.time.Duration
 
 /**
  * Command execution operations for sandbox environments.
