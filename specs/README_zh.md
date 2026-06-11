@@ -98,6 +98,7 @@
 - `GET /files/download` - 下载文件（支持断点续传）
 
 **目录操作：**
+- `GET /directories/list` - 按可选深度列出目录内容
 - `POST /directories` - 按权限配置创建目录（mkdir -p 语义）
 - `DELETE /directories` - 递归删除目录
 

@@ -98,6 +98,7 @@ Defines interfaces for executing code, commands, and file operations within sand
 - `GET /files/download` - Download files (supports range requests)
 
 **Directory Operations:**
+- `GET /directories/list` - List directory contents with optional depth control
 - `POST /directories` - Create directories with permissions (mkdir -p semantics)
 - `DELETE /directories` - Recursively delete directories
 
