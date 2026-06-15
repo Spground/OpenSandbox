@@ -16,6 +16,7 @@ package controller
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"net/http"
@@ -154,28 +155,28 @@ func (c *FilesystemController) serveLineRange(file *os.File, rawOffset, rawLimit
 	c.ctx.Header("Content-Type", "text/plain; charset=utf-8")
 	c.ctx.Status(http.StatusOK)
 
-	const maxLineSize = 1024 * 1024 // 1 MiB
-	scanner := bufio.NewScanner(file)
-	scanner.Buffer(make([]byte, 0, 64*1024), maxLineSize)
-
+	reader := bufio.NewReader(file)
 	var lineNum int64
 	var written int64
-	for scanner.Scan() {
-		lineNum++
-		if lineNum < offset {
-			continue
+	for {
+		line, err := reader.ReadBytes('\n')
+		if len(line) > 0 {
+			line = bytes.TrimRight(line, "\r\n")
+			lineNum++
+			if lineNum >= offset {
+				if written > 0 {
+					_, _ = c.ctx.Writer.Write([]byte("\n"))
+				}
+				_, _ = c.ctx.Writer.Write(line)
+				written++
+				if limit >= 0 && written >= limit {
+					break
+				}
+			}
 		}
-		if written > 0 {
-			_, _ = c.ctx.Writer.Write([]byte("\n"))
-		}
-		_, _ = c.ctx.Writer.Write(scanner.Bytes())
-		written++
-		if limit >= 0 && written >= limit {
+		if err != nil {
 			break
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		_, _ = c.ctx.Writer.Write([]byte(fmt.Sprintf("\n[error reading file: %v]", err)))
 	}
 }
 
