@@ -64,7 +64,7 @@ DEFAULT_IMAGE = os.getenv(
 DEFAULT_TIMEOUT_SECONDS = int(os.getenv("SANDBOX_TIMEOUT_SECONDS", "1800"))
 
 AZURE_OPENAI_DEPLOYMENT = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
-AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-06-01")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview") 
 
 # Shared connection config.  request_timeout is raised because Kata VM
 # sandbox creation involves image pulls that can take well over the default
